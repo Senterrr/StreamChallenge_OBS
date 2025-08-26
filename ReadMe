@@ -1,178 +1,75 @@
-# Challenge Overlay (Controller + Viewer) — Setup Guide
+StreamChallenge OBS
 
-This project gives you a StreamElements‑style **Controller** (full UI you operate off‑stream) and a clean **Viewer** overlay (only visuals) for OBS. They communicate through a tiny local WebSocket relay.
+A local tool to manage stream challenges (checklists, wheel of fortune, etc.) and show them in OBS through a browser source.
 
----
+📦 Setup (first time only)
+1. Install Node.js
 
-## What’s in the folder
+Download & install the LTS version from nodejs.org
+.
 
-```
-OBS_TEST/
-├─ controller.html    # The control app (open in a normal browser)
-├─ overlay.html       # The viewer for OBS (Browser Source)
-└─ ws-server/
-   ├─ server.js       # WebSocket relay
-   └─ package.json    # Created with `npm init -y`
-```
+Verify installation in terminal:
 
-> If `package.json` doesn’t exist, create it with `npm init -y` **inside** `ws-server/`.
-
----
-
-## 1) Install prerequisites
-
-You need **Node.js 18+**. Verify in Terminal / Command Prompt:
-
-```
 node -v
-```
 
-If it’s missing:
+2. Install dependencies
 
-* **macOS** (Homebrew): `brew install node`
-* **Windows**: download from nodejs.org (LTS is fine) and run the installer.
+From the project folder, go into the ws-server folder and run:
 
----
+cd ws-server
+npm install
 
-## 2) Install the WebSocket relay (first time only)
+🚀 Launching
+🪟 Windows
 
-Open a terminal **in** the `ws-server` folder and install the dependency:
+Double-click start.bat in the project root.
 
-```
-cd /path/to/OBS_TEST/ws-server
-npm init -y            # if you don’t already have package.json
-npm pkg set type=module
-npm install ws
-```
+This will:
 
----
+Start the local WebSocket server
 
-## 3) Start the WebSocket relay (every time you use it)
+Open the Controller in your default browser
 
-From the same folder:
+🍎 macOS
 
-```
-cd "/Users/skrebber/Documents/OBS_TEST/ws-server"
+Open Terminal and run:
+
+cd path/to/StreamChallenge_OBS/ws-server
 node server.js
-```
 
-You should see:
 
-```
-[relay] listening on ws://127.0.0.1:17311
-```
+Open controller.html in Chrome/Edge/Safari (just double-click it).
 
-Allow the firewall prompt if it appears.
+🎥 Add Overlay to OBS
 
-> **Important:** Do **not** try to open `ws://127.0.0.1:17311` in the browser address bar; it’s not a web page. HTML files connect to it programmatically.
+In OBS → + → Browser
 
----
+Check "Local file"
 
-## 4) Open the Controller (your off‑stream UI)
+Select overlay.html from this project
 
-Open `controller.html` in Chrome / Edge / Safari:
+Set width/height to match your canvas (e.g. 1920×1080)
 
-* **macOS**:
+🕹️ Usage
 
-  ```
-  file:///Users/<you>/Documents/OBS_TEST/controller.html
-  ```
-* **Windows**:
+Controller (controller.html) → Off-stream control panel
 
-  ```
-  file:///C:/Users/<you>/Documents/OBS_TEST/controller.html
-  ```
+Overlay (overlay.html) → The visual that shows in OBS
 
-The controller connects to `ws://127.0.0.1:17311` on channel `obs_challenge_overlay` by default. You can change both at the top of the page.
+Both connect through the local WebSocket server (default: ws://127.0.0.1:17311).
 
-What you can do:
+🔧 Common Issues
 
-* Edit title, items (one per line), mode (List/Wheel), Progressive, Orientation, Scale, and Insets.
-* Use buttons or hotkeys: **Enter/Space** = Next/Progress (List) or Spin (Wheel), **←/Backspace** = Prev, **D** = Toggle Done, **R** = Reset, **1..9** = Jump.
-* The right‑hand **Preview** shows exactly what OBS will display.
+Controller/Overlay says "Disconnected"
 
-The controller automatically pushes state to any viewer overlays connected to the same channel.
+Make sure the server is running (start.bat on Windows, node server.js on Mac).
 
----
+Allow Node.js through the firewall.
 
-## 5) Add the Viewer to OBS
+Overlay is blank in OBS
 
-In **OBS** → **+** → **Browser**:
+Ensure you checked Local file and selected overlay.html.
 
-### Option A — Local file (simple)
+Channel names in Controller & Overlay must match (default: obs_challenge_overlay).
 
-* Tick **Local file** and browse to `overlay.html`.
-* Set the Browser Source size to your canvas (e.g., 1920×1080).
-
-### Option B — File URL (for extras by URL)
-
-* Untick **Local file** and use a file URL, e.g.:
-
-  ```
-  file:///C:/Users/<you>/Documents/OBS_TEST/overlay.html?frame=1
-  ```
-
-  or on macOS:
-
-  ```
-  file:///Users/<you>/Documents/OBS_TEST/overlay.html?frame=1
-  ```
-
-  `frame=1` draws a dashed frame to help with alignment (remove later).
-
-> The overlay will request the latest state from the controller via the WS relay. Make sure both use the same **channel** (default `obs_challenge_overlay`).
-
----
-
-## 6) Troubleshooting
-
-* **Panel says “Disconnected”**
-
-  * Ensure `node server.js` is running and shows the listening message.
-  * WS URL is exactly `ws://127.0.0.1:17311` (note `ws://`, not `https://`).
-  * Channel matches between controller and overlay.
-  * Allow Node in Windows/macOS firewall.
-
-* **OBS overlay doesn’t update**
-
-  * Channel mismatch or relay isn’t running.
-  * Nudge the controller (toggle mode) to push fresh state.
-
-* **Blank overlay page**
-
-  * Make sure you’re loading `overlay.html` as a local file/URL, not the WS URL.
-
-* **Multiple overlays**
-
-  * Use different `Channel` names (e.g., `main`, `wheel2`) and open a controller per channel.
-
-* **Control from another PC on your LAN**
-
-  * Replace `127.0.0.1` with your machine’s LAN IP in both controller and overlay (e.g., `ws://192.168.1.50:17311`) and allow Node on Private networks.
-
----
-
-## 7) Hotkeys summary (Controller window focused)
-
-* **Enter/Space** — Next/Progress (List) or Spin (Wheel)
-* **← / Backspace** — Prev
-* **D** — Toggle Done
-* **R** — Reset list
-* **1..9** — Jump to item
-
----
-
-## 8) FAQ
-
-**Do I need to run a web server for the HTML files?**
-No. Open them directly as `file:///` URLs. Only the WebSocket relay uses Node.
-
-**Can the overlay show UI on stream?**
-No—the overlay is visuals‑only. All editing happens in the controller.
-
-**Can I have multiple scenes with different overlays?**
-Yes. Give each scene’s overlay its own `Channel` and open a matching controller window per channel.
-
----
-
-Happy streaming! 🎉
+That’s it — just launch the server, open the Controller, and add the Overlay to OBS 🎉
