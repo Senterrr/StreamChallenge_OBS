@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Challenge Overlay — Controller</title>
+<style>
+  /* THEME TOKENS */
+  :root[data-theme="dark"]{
+    --text:#fff;
+    --muted:#ffffffa6;
+    --bg:#0b0b12;
+    --card:#15151f;
+    --border:#ffffff16;
+    --btn-bg:#ffffff18;
+    --btn-b:#ffffff2e;
+    --btn-active:linear-gradient(135deg,#7c3aed9e,#22d3ee9e);
+    --shadow:0 12px 30px rgba(0,0,0,.45);
+  }
+  :root[data-theme="light"]{
+    --text:#0b0b12;
+    --muted:#0000007a;
+    --bg:#fafafa;
+    --card:#ffffff;
+    --border:#00000014;
+    --btn-bg:#0000000e;
+    --btn-b:#00000022;
+    --btn-active:linear-gradient(135deg,#7c3aed40,#22d3ee40);
+    --shadow:0 8px 22px rgba(0,0,0,.16);
+  }
+
+  /* BASE */
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;
+  }
+  .title{
+    padding:8px 12px; margin-bottom:12px;
+    font-weight:900; font-size:22px; border-radius:12px;
+    background:linear-gradient(135deg,#7c3aed36,#22d3ee36);
+    border:1px solid var(--btn-b);
+    text-shadow:0 2px 8px #00000044;
+    color:var(--text);
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px;
+    box-shadow:var(--shadow);
+  }
+  .hint{font-size:12px;color:var(--muted)}
+  .status{font-weight:800}
+  .toolbar,.panel{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  .field{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .field>label{min-width:92px;color:var(--muted)}
+  .input,.select,.textarea{
+    padding:6px 8px;border-radius:8px;background:var(--btn-bg);
+    border:1px solid var(--btn-b); color:var(--text); outline:none
+  }
+  .input[type=number]{width:90px}
+  .textarea{min-width:320px;min-height:120px}
+  .toolbtn,.modebtn{
+    padding:8px 12px;border-radius:10px;background:var(--btn-bg);
+    border:1px solid var(--btn-b); color:var(--text); font-weight:700; cursor:pointer;
+    box-shadow:var(--shadow)
+  }
+  .modebtn.active,.toolbtn.active{ background:var(--btn-active) }
+
+  /* LAYOUT with draggable divider */
+  .wrap{
+    display:flex;
+    gap:0;
+    padding:18px;
+  }
+  .wrap>.left{ flex:0 0 var(--leftWidth, 540px); min-width:340px; max-width:900px }
+  .wrap>.right{ flex:1 1 auto; min-width:420px }
+  .divider{
+    width:6px; margin:0 12px; cursor:col-resize;
+    background:linear-gradient(180deg, #ffffff22, #ffffff10);
+    border-radius:8px; user-select:none;
+  }
+  .divider:hover{ background:linear-gradient(180deg, #ffffff33, #ffffff18) }
+
+  /* PREVIEW (iframe overlay, auto scaled) */
+  .previewCard{min-height:520px;display:flex;flex-direction:column;gap:14px}
+  .previewHead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .previewBody{display:flex;flex-direction:column;gap:12px}
+
+  .previewEmbed{
+    position:relative;
+    width:100%;
+    min-height:360px;
+    height:clamp(360px, 70vh, 900px);
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid var(--border);
+    background:#0e0e17;
+  }
+  .previewStage{
+    width:1280px; height:720px;
+    transform:scale(var(--pvScale,1));
+    transform-origin:top left;
+  }
+  .previewStage>iframe{
+    width:1280px; height:720px; border:0;
+    pointer-events:none; /* remove if you want to click inside the preview */
+  }
+
+  /* Progressive fade flag (just keeps compatibility with overlay state) */
+  #previewCard.pvProgressive .pill.done{ opacity:.35; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="left">
+    <div class="title">Controller</div>
+    <button id="themeToggle" class="toolbtn" style="margin-bottom:12px">Toggle Light/Dark</button>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="field"><label>WS URL</label><input id="wsUrl" class="input" value="ws://127.0.0.1:17311"/></div>
+      <div class="field"><label>Channel</label><input id="channel" class="input" value="obs_challenge_overlay"/></div>
+      <div class="field"><label>Connected</label><span id="status" class="status">…</span></div>
+      <div class="hint">Open the overlay with the same channel & WS URL.</div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="field"><label>Title</label><input id="title" class="input" placeholder="Challenge"/></div>
+      <div class="field"><label>Mode</label>
+        <button id="btnList" class="modebtn">List</button>
+        <button id="btnWheel" class="modebtn">Wheel</button>
+      </div>
+      <div class="field"><label>Progressive</label><label><input type="checkbox" id="chkProg"> Enable</label></div>
+      <div class="field"><label>Orientation</label>
+        <button id="btnH" class="toolbtn">Horizontal</button>
+        <button id="btnV" class="toolbtn">Vertical</button>
+      </div>
+      <div class="field"><label>Scale</label><input id="scale" class="input" type="number" step="0.05" min="0.2" max="3" value="1"></div>
+      <div class="field"><label>Insets</label><input id="insets" class="input" placeholder="36,48,36,48" title="Top,Right,Bottom,Left"/></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="field" style="flex-direction:column;align-items:stretch">
+        <label class="hint">Items (one per line)</label>
+        <textarea id="items" class="textarea"></textarea>
+      </div>
+      <div class="panel">
+        <button id="applyItems" class="toolbtn">Apply Items</button>
+        <button id="reset" class="toolbtn">Reset</button>
+        <button id="prev" class="toolbtn">Prev</button>
+        <button id="next" class="toolbtn">Next / Progress</button>
+        <button id="toggleDone" class="toolbtn">Toggle Done</button>
+        <button id="goto1" class="toolbtn">Goto 1</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel">
+        <button id="spin" class="toolbtn">Spin</button>
+        <button id="stop" class="toolbtn">Stop</button>
+      </div>
+      <div class="hint">
+        Hotkeys (focus this tab): Enter/Space = Next/Progress (List) or Spin (Wheel) · ←/Backspace = Prev · D = Toggle Done · <b>R = Reset</b> · H/V = Orientation
+      </div>
+    </div>
+  </div>
+
+  <div class="divider" id="divider" role="separator" aria-orientation="vertical" aria-label="Resize panels"></div>
+
+  <div class="right">
+    <div class="title">Preview</div>
+    <div class="card previewCard" id="previewCard">
+      <div class="previewHead">
+        <div id="previewTitle" class="title"></div>
+      </div>
+      <div class="previewBody">
+        <div class="previewEmbed" id="previewEmbed">
+          <div class="previewStage" id="previewStage">
+            <iframe id="overlayPreview" width="1280" height="720" src="" loading="lazy" referrerpolicy="no-referrer"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ===== DOM
+  const $wsUrl = document.getElementById('wsUrl');
+  const $channel = document.getElementById('channel');
+  const $status = document.getElementById('status');
+  const $title = document.getElementById('title');
+  const $btnList = document.getElementById('btnList');
+  const $btnWheel = document.getElementById('btnWheel');
+  const $chkProg = document.getElementById('chkProg');
+  const $btnH = document.getElementById('btnH');
+  const $btnV = document.getElementById('btnV');
+  const $scale = document.getElementById('scale');
+  const $insets = document.getElementById('insets');
+  const $items = document.getElementById('items');
+  const $applyItems = document.getElementById('applyItems');
+  const $reset = document.getElementById('reset');
+  const $prev = document.getElementById('prev');
+  const $next = document.getElementById('next');
+  const $toggleDone = document.getElementById('toggleDone');
+  const $goto1 = document.getElementById('goto1');
+  const $spin = document.getElementById('spin');
+  const $stop = document.getElementById('stop');
+
+  const $previewCard = document.getElementById('previewCard');
+  const $previewTitle = document.getElementById('previewTitle');
+  const $previewEmbed = document.getElementById('previewEmbed');
+  const $previewStage = document.getElementById('previewStage');
+
+  const $left = document.querySelector('.left');
+  const $divider = document.getElementById('divider');
+
+  // ===== Persisted state
+  const KEY='controller_state_v1';
+  const LEFT_KEY='controller_left_width_px';
+  const THEME_KEY='controller_theme';
+
+  const saved=JSON.parse(localStorage.getItem(KEY)||'{}');
+
+  const state={
+    title:saved.title||'Challenge',
+    items:Array.isArray(saved.items)&&saved.items.length?saved.items:['Pistol','SMG','Shotgun','AR','Sniper'],
+    mode:saved.mode||'list',
+    progressive:!!saved.progressive,
+    orientation:saved.orientation||'horizontal',
+    scale:saved.scale||1,
+    insets:saved.insets||'36,48,36,48',
+    current:saved.current||0,
+    done:Array.isArray(saved.done)?saved.done:[]
+  };
+
+  // wheel physics (sent to overlay)
+  const WHEEL_VEL = 0.24;
+  const WHEEL_FRICTION = 0.985;
+
+  // theme
+  const $themeToggle=document.getElementById('themeToggle');
+  function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem(THEME_KEY, t); }
+  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+  $themeToggle.addEventListener('click', ()=>{
+    const cur=document.documentElement.getAttribute('data-theme')||'dark';
+    applyTheme(cur==='dark'?'light':'dark');
+  });
+
+  function persist(){ localStorage.setItem(KEY, JSON.stringify({...state, wsUrl:wsUrlVal, channel:channelVal})); }
+
+  // UI helpers
+  function setModeButtons(){
+    [$btnList,$btnWheel].forEach(b=>b.classList.remove('active'));
+    (state.mode==='list'?$btnList:$btnWheel).classList.add('active');
+  }
+  function setOrientationButtons(){
+    [$btnH,$btnV].forEach(b=>b.classList.remove('active'));
+    (state.orientation==='horizontal'?$btnH:$btnV).classList.add('active');
+  }
+  function renderPreview(){
+    $previewTitle.textContent = state.title;
+    $previewTitle.style.display = state.title ? 'inline-block' : 'none';
+    $previewCard.classList.toggle('pvProgressive', !!state.progressive);
+    setModeButtons();
+    setOrientationButtons();
+  }
+
+  // ===== Preview scaling
+  function fitPreview(){
+    if(!$previewEmbed || !$previewStage) return;
+    const BASE_W=1280, BASE_H=720;
+    const rect=$previewEmbed.getBoundingClientRect();
+    const scale=Math.max(0.1, Math.min(rect.width/BASE_W, rect.height/BASE_H));
+    $previewStage.style.setProperty('--pvScale', scale);
+  }
+  const ro = new ResizeObserver(()=>fitPreview());
+  ro.observe($previewEmbed);
+  window.addEventListener('resize', fitPreview);
+
+  // ===== Draggable divider
+  (function restoreLeftWidth(){
+    const savedW=parseInt(localStorage.getItem(LEFT_KEY),10);
+    if(!isNaN(savedW)){ document.documentElement.style.setProperty('--leftWidth', savedW+'px'); }
+  })();
+  let dragging=false, startX=0, startWidth=0;
+  function onDown(e){
+    dragging=true; startX=e.clientX; startWidth=$left.getBoundingClientRect().width;
+    document.body.style.cursor='col-resize';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+  function onMove(e){
+    if(!dragging) return;
+    const dx=e.clientX-startX;
+    const newW=Math.max(340, Math.min(900, startWidth+dx));
+    document.documentElement.style.setProperty('--leftWidth', newW+'px');
+    localStorage.setItem(LEFT_KEY, String(newW));
+    fitPreview();
+  }
+  function onUp(){
+    dragging=false; document.body.style.cursor='';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+  $divider.addEventListener('mousedown', onDown);
+
+  // ===== Overlay iframe URL
+  let wsUrlVal = saved.wsUrl || 'ws://127.0.0.1:17311';
+  let channelVal = saved.channel || 'obs_challenge_overlay';
+  $wsUrl.value = wsUrlVal; $channel.value = channelVal;
+
+  function overlayUrl(){
+    const params=new URLSearchParams({
+      ws: wsUrlVal,
+      channel: channelVal,
+      frame: '1',
+      mute: '1',
+      insets: state.insets || '36,48,36,48'
+    });
+    // If the file has a different name or path, update here:
+    return `overlay.html?${params.toString()}`;
+  }
+  function updatePreviewSrc(){
+    const ifr=document.getElementById('overlayPreview');
+    if(ifr) ifr.src=overlayUrl();
+  }
+
+  // ===== WebSocket plumbing
+  let ws=null, backoff=800;
+  function setStatus(s){ $status.textContent=s; }
+  function connect(){
+    try{ ws=new WebSocket(wsUrlVal); }catch(e){ setStatus('error'); return; }
+    ws.onopen=()=>{ setStatus('connected'); backoff=800; ws.send(JSON.stringify({type:'register',role:'panel',channel:channelVal})); sendState(); };
+    ws.onmessage=(ev)=>{ try{ const msg=JSON.parse(ev.data); if(msg.type==='request-state'){ sendState(); } }catch(e){} };
+    ws.onclose=()=>{ setStatus('disconnected'); setTimeout(connect, backoff); backoff=Math.min(backoff*1.6,5000); };
+    ws.onerror=()=>{ setStatus('error'); try{ws.close();}catch(e){} };
+  }
+  function sendCmd(cmd,payload){ try{ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({type:'cmd',channel:channelVal,cmd,payload})); } }catch(e){} }
+  function sendState(){ try{ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({type:'state',channel:channelVal,payload:state})); } }catch(e){} }
+
+  // Mirror-only (local) state so the title/prog buttons reflect current state
+  function applyCmdLocally(cmd, payload){
+    switch(cmd){
+      case 'prev':
+        state.current = Math.max(0, state.current-1);
+        break;
+      case 'next':
+        if(state.mode==='list'){
+          if(state.progressive){
+            if(!state.done.includes(state.current)) state.done=[...state.done, state.current];
+            state.current=Math.min(state.items.length-1, state.current+1);
+          }else{
+            state.current=Math.min(state.items.length-1, state.current+1);
+          }
+        }
+        break;
+      case 'toggleDone':
+        if(state.done.includes(state.current)) state.done=state.done.filter(i=>i!==state.current);
+        else state.done=[...state.done, state.current];
+        break;
+      case 'reset':
+        state.current=0; state.done=[];
+        break;
+      case 'goto':
+        if(Number.isInteger(payload)) state.current=Math.max(0, Math.min(state.items.length-1, payload));
+        break;
+      case 'spin':
+      case 'stop':
+        // no local spin; iframe overlay handles visuals
+        break;
+    }
+    persist(); renderPreview();
+  }
+
+  // ===== Wire inputs
+  $title.value=state.title; $items.value=state.items.join('\n'); $chkProg.checked=state.progressive; $scale.value=state.scale; $insets.value=state.insets;
+
+  function saveConn(){ wsUrlVal=$wsUrl.value.trim(); channelVal=$channel.value.trim()||'obs_challenge_overlay'; persist(); }
+
+  $wsUrl.addEventListener('change', ()=>{ saveConn(); try{ws&&ws.close();}catch(e){} connect(); updatePreviewSrc(); });
+  $channel.addEventListener('change', ()=>{ saveConn(); try{ws&&ws.close();}catch(e){} connect(); updatePreviewSrc(); });
+
+  $insets.addEventListener('change', ()=>{ state.insets=$insets.value.trim(); persist(); sendState(); updatePreviewSrc(); });
+
+  $title.addEventListener('input', ()=>{ state.title=$title.value; persist(); renderPreview(); sendState(); });
+  $btnList.addEventListener('click', ()=>{ state.mode='list'; persist(); renderPreview(); sendState(); });
+  $btnWheel.addEventListener('click', ()=>{ state.mode='wheel'; persist(); renderPreview(); sendState(); });
+  $chkProg.addEventListener('change', ()=>{ state.progressive=$chkProg.checked; persist(); renderPreview(); sendState(); });
+  $btnH.addEventListener('click', ()=>{ state.orientation='horizontal'; persist(); setOrientationButtons(); renderPreview(); sendState(); });
+  $btnV.addEventListener('click', ()=>{ state.orientation='vertical';   persist(); setOrientationButtons(); renderPreview(); sendState(); });
+  $scale.addEventListener('change', ()=>{ state.scale=parseFloat($scale.value)||1; persist(); sendState(); });
+
+  function setItemsFromTextarea(){
+    const arr=$items.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    if(arr.length){ state.items=arr; state.current=0; state.done=[]; }
+    persist(); renderPreview(); sendState();
+  }
+  $applyItems.addEventListener('click', setItemsFromTextarea);
+
+  $reset.addEventListener('click', ()=>{ applyCmdLocally('reset'); sendState(); });
+  $prev.addEventListener('click', ()=>{ applyCmdLocally('prev'); sendCmd('prev'); });
+  $next.addEventListener('click', ()=>{ applyCmdLocally('next'); sendCmd('next'); });
+  $toggleDone.addEventListener('click', ()=>{ applyCmdLocally('toggleDone'); sendCmd('toggleDone'); });
+  $goto1.addEventListener('click', ()=>{ applyCmdLocally('goto',0); sendCmd('goto',0); });
+  $spin.addEventListener('click', ()=>{ const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION }; applyCmdLocally('spin', payload); sendCmd('spin', payload); });
+  $stop.addEventListener('click', ()=>{ applyCmdLocally('stop'); sendCmd('stop'); });
+
+  // Hotkeys
+  document.addEventListener('keydown', (e)=>{
+    const tag=(e.target.tagName||'').toLowerCase();
+    if(tag==='input' || tag==='textarea') return;
+    const k=e.key.toLowerCase();
+    if(k==='enter'||k===' '){
+      e.preventDefault();
+      if(state.mode==='wheel'){
+        const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION };
+        applyCmdLocally('spin', payload); sendCmd('spin', payload);
+      }else{
+        applyCmdLocally('next'); sendCmd('next');
+      }
+    }else if(k==='arrowleft'||k==='backspace'){ e.preventDefault(); applyCmdLocally('prev'); sendCmd('prev'); }
+    else if(k==='d'){ applyCmdLocally('toggleDone'); sendCmd('toggleDone'); }
+    else if(k==='r'){ applyCmdLocally('reset'); sendState(); }
+    else if(k==='h'){ state.orientation='horizontal'; persist(); setOrientationButtons(); renderPreview(); sendState(); }
+    else if(k==='v'){ state.orientation='vertical';   persist(); setOrientationButtons(); renderPreview(); sendState(); }
+  });
+
+  // ===== Init
+  renderPreview();
+  connect();
+  updatePreviewSrc();
+  fitPreview();
+})();
+</script>
+</body>
+</html>
