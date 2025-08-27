@@ -7,49 +7,24 @@
 <style>
   /* THEME TOKENS */
   :root[data-theme="dark"]{
-    --text:#fff;
-    --muted:#ffffffa6;
-    --bg:#0b0b12;
-    --card:#15151f;
-    --border:#ffffff16;
-    --btn-bg:#ffffff18;
-    --btn-b:#ffffff2e;
-    --btn-active:linear-gradient(135deg,#7c3aed9e,#22d3ee9e);
+    --text:#fff; --muted:#ffffffa6; --bg:#0b0b12; --card:#15151f; --border:#ffffff16;
+    --btn-bg:#ffffff18; --btn-b:#ffffff2e; --btn-active:linear-gradient(135deg,#7c3aed9e,#22d3ee9e);
     --shadow:0 12px 30px rgba(0,0,0,.45);
   }
   :root[data-theme="light"]{
-    --text:#0b0b12;
-    --muted:#0000007a;
-    --bg:#fafafa;
-    --card:#ffffff;
-    --border:#00000014;
-    --btn-bg:#0000000e;
-    --btn-b:#00000022;
-    --btn-active:linear-gradient(135deg,#7c3aed40,#22d3ee40);
+    --text:#0b0b12; --muted:#0000007a; --bg:#fafafa; --card:#ffffff; --border:#00000014;
+    --btn-bg:#0000000e; --btn-b:#00000022; --btn-active:linear-gradient(135deg,#7c3aed40,#22d3ee40);
     --shadow:0 8px 22px rgba(0,0,0,.16);
   }
 
   /* BASE */
   html,body{height:100%}
-  body{
-    margin:0; background:var(--bg); color:var(--text);
-    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;
-  }
-  .title{
-    padding:8px 12px; margin-bottom:12px;
-    font-weight:900; font-size:22px; border-radius:12px;
-    background:linear-gradient(135deg,#7c3aed36,#22d3ee36);
-    border:1px solid var(--btn-b);
-    text-shadow:0 2px 8px #00000044;
-    color:var(--text);
-  }
-  .card{
-    background:var(--card);
-    border:1px solid var(--border);
-    border-radius:14px;
-    padding:14px;
-    box-shadow:var(--shadow);
-  }
+  body{ margin:0; background:var(--bg); color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial; }
+  .title{ padding:8px 12px; margin-bottom:12px; font-weight:900; font-size:22px; border-radius:12px;
+    background:linear-gradient(135deg,#7c3aed36,#22d3ee36); border:1px solid var(--btn-b);
+    text-shadow:0 2px 8px #00000044; color:var(--text); }
+  .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; box-shadow:var(--shadow); }
   .hint{font-size:12px;color:var(--muted)}
   .status{font-weight:800}
   .toolbar,.panel{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
@@ -69,59 +44,29 @@
   .modebtn.active,.toolbtn.active{ background:var(--btn-active) }
 
   /* LAYOUT with draggable divider */
-  .wrap{
-    display:flex;
-    gap:0;
-    padding:18px;
-  }
+  .wrap{ display:flex; gap:0; padding:18px; }
   .wrap>.left{ flex:0 0 var(--leftWidth, 540px); min-width:340px; max-width:900px }
   .wrap>.right{ flex:1 1 auto; min-width:420px }
-  .divider{
-    width:6px; margin:0 12px; cursor:col-resize;
-    background:linear-gradient(180deg, #ffffff22, #ffffff10);
-    border-radius:8px; user-select:none;
-  }
+  .divider{ width:6px; margin:0 12px; cursor:col-resize;
+    background:linear-gradient(180deg, #ffffff22, #ffffff10); border-radius:8px; user-select:none; }
   .divider:hover{ background:linear-gradient(180deg, #ffffff33, #ffffff18) }
 
   /* PREVIEW (iframe overlay, auto scaled) */
   .previewCard{min-height:520px;display:flex;flex-direction:column;gap:14px}
   .previewHead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .previewBody{display:flex;flex-direction:column;gap:12px}
-
   .previewEmbed{
-    position:relative;
-    width:100%;
-    min-height:360px;
-    height:clamp(360px, 70vh, 900px);
-    border-radius:12px;
-    overflow:hidden;
-    border:1px solid var(--border);
-    background:#0e0e17;
+    position:relative;width:100%;min-height:360px;height:clamp(360px, 70vh, 900px);
+    border-radius:12px; overflow:hidden; border:1px solid var(--border); background:#0e0e17;
   }
-  .previewStage{
-    width:1280px; height:720px;
-    transform:scale(var(--pvScale,1));
-    transform-origin:top left;
-  }
-  .previewStage>iframe{
-    width:1280px; height:720px; border:0;
-    pointer-events:none; /* remove if you want to click inside the preview */
-  }
-  /* Progressive fade flag (just keeps compatibility with overlay state) */
+  .previewStage{ width:1280px; height:720px; transform:scale(var(--pvScale,1)); transform-origin:top left; }
+  .previewStage>iframe{ width:1280px; height:720px; border:0; pointer-events:none; }
   #previewCard.pvProgressive .pill.done{ opacity:.35; }
-  /* put this in your <style> block */
-  .keybinds-panel { display:flex; flex-wrap:wrap; gap:12px; }
-  .keybinds-panel label { display:flex; align-items:center; gap:8px; }
-  .key-input { width: 160px; } /* keeps them small */
 
-
-  /* default arrow over containers */
-body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor: default; }
-/* keep pointer on buttons */
-.toolbtn, .modebtn { cursor: pointer; }
-/* keep I-beam only where typing is possible */
-.input, .textarea, input[type="text"], input[type="number"], textarea { cursor: text; }
-
+  /* Cursor hygiene */
+  body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor: default; }
+  .toolbtn, .modebtn { cursor: pointer; }
+  .input, .textarea, input[type="text"], input[type="number"], textarea { cursor: text; }
 </style>
 </head>
 <body>
@@ -140,18 +85,18 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
     <div class="card" style="margin-bottom:12px">
       <div class="field"><label>Title</label><input id="title" class="input" placeholder="Challenge"/></div>
       <div class="field"><label>Mode</label>
-        <button id="btnList" class="modebtn">List</button>
-        <button id="btnWheel" class="modebtn">Wheel</button>
+        <button data-mode="list"  id="btnList"  class="modebtn">List</button>
+        <button data-mode="wheel" id="btnWheel" class="modebtn">Wheel</button>
       </div>
       <div class="field"><label>Progressive</label><label><input type="checkbox" id="chkProg"> Enable</label></div>
       <div class="field"><label>Orientation</label>
-        <button id="btnH" class="toolbtn">Horizontal</button>
-        <button id="btnV" class="toolbtn">Vertical</button>
+        <button data-orient="horizontal" id="btnH" class="toolbtn">Horizontal</button>
+        <button data-orient="vertical"   id="btnV" class="toolbtn">Vertical</button>
       </div>
       <div class="field"><label>Alignment</label>
-        <button id="alignLeft"   class="toolbtn">Left</button>
-        <button id="alignCenter" class="toolbtn">Center</button>
-        <button id="alignRight"  class="toolbtn">Right</button>
+        <button data-align="left"   id="alignLeft"   class="toolbtn">Left</button>
+        <button data-align="center" id="alignCenter" class="toolbtn">Center</button>
+        <button data-align="right"  id="alignRight"  class="toolbtn">Right</button>
       </div>
       <div class="field"><label>Scale</label><input id="scale" class="input" type="number" step="0.05" min="0.2" max="3" value="1"></div>
       <div class="field"><label>Insets</label><input id="insets" class="input" placeholder="36,48,36,48" title="Top,Right,Bottom,Left"/></div>
@@ -163,26 +108,26 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
         <textarea id="items" class="textarea"></textarea>
       </div>
       <div class="panel">
-        <button id="applyItems" class="toolbtn">Apply Items</button>
-        <button id="reset" class="toolbtn">Reset</button>
-        <button id="prev" class="toolbtn">Prev</button>
-        <button id="next" class="toolbtn">Next / Progress</button>
-        <button id="toggleDone" class="toolbtn">Toggle Done</button>
-        <button id="goto1" class="toolbtn">Goto 1</button>
+        <button data-action="applyItems" id="applyItems" class="toolbtn">Apply Items</button>
+        <button data-action="reset"      id="reset" class="toolbtn">Reset</button>
+        <button data-action="prev"       id="prev" class="toolbtn">Prev</button>
+        <button data-action="next"       id="next" class="toolbtn">Next / Progress</button>
+        <button data-action="toggleDone" id="toggleDone" class="toolbtn">Toggle Done</button>
+        <button data-action="goto1"      id="goto1" class="toolbtn">Goto 1</button>
       </div>
     </div>
 
     <div class="card">
       <div class="panel">
-        <button id="spin" class="toolbtn">Spin</button>
-        <button id="stop" class="toolbtn">Stop</button>
+        <button data-action="spin" id="spin" class="toolbtn">Spin</button>
+        <button data-action="stop" id="stop" class="toolbtn">Stop</button>
       </div>
       <div class="hint">
         Hotkeys (focus this tab): Enter/Space = Next/Progress (List) or Spin (Wheel) · ←/Backspace = Prev · D = Toggle Done · <b>R = Reset</b> · H/V = Orientation
       </div>
     </div>
 
-     <div class="card" id="keybindsCard" style="margin-top:12px">
+    <div class="card" id="keybindsCard" style="margin-top:12px">
       <h3>Keybinds</h3>
       <div class="panel" style="gap:12px;flex-wrap:wrap">
         <label>Next/Spin <input id="kb-next"  class="input" placeholder="Enter/Space"/></label>
@@ -193,11 +138,8 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
       <div class="hint">Click a box, press a key. Saved automatically.</div>
     </div>
   </div>
- 
-
 
   <div class="divider" id="divider" role="separator" aria-orientation="vertical" aria-label="Resize panels"></div>
-
 
   <div class="right">
     <div class="title">Preview</div>
@@ -217,353 +159,346 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
 </div>
 
 <script>
-(function(){
-  // ===== DOM
-  const $wsUrl = document.getElementById('wsUrl');
-  const $channel = document.getElementById('channel');
-  const $status = document.getElementById('status');
-  const $title = document.getElementById('title');
-  const $btnList = document.getElementById('btnList');
-  const $btnWheel = document.getElementById('btnWheel');
-  const $chkProg = document.getElementById('chkProg');
-  const $btnH = document.getElementById('btnH');
-  const $btnV = document.getElementById('btnV');
-  const $scale = document.getElementById('scale');
-  const $insets = document.getElementById('insets');
-  const $items = document.getElementById('items');
-  const $applyItems = document.getElementById('applyItems');
-  const $reset = document.getElementById('reset');
-  const $prev = document.getElementById('prev');
-  const $next = document.getElementById('next');
-  const $toggleDone = document.getElementById('toggleDone');
-  const $goto1 = document.getElementById('goto1');
-  const $spin = document.getElementById('spin');
-  const $stop = document.getElementById('stop');
-  const $alignLeft = document.getElementById('alignLeft');
-  const $alignCenter = document.getElementById('alignCenter');
-  const $alignRight = document.getElementById('alignRight');
-
-
-  const $previewCard = document.getElementById('previewCard');
-  const $previewTitle = document.getElementById('previewTitle');
-  const $previewEmbed = document.getElementById('previewEmbed');
-  const $previewStage = document.getElementById('previewStage');
-
-  const $left = document.querySelector('.left');
-  const $divider = document.getElementById('divider');
-
-  // ===== Persisted state
+(() => {
+  // ===================== Constants / utils =====================
   const KEY='controller_state_v1';
   const LEFT_KEY='controller_left_width_px';
   const THEME_KEY='controller_theme';
+  const BINDS_KEY='controller_binds_v1';
 
-  const saved=JSON.parse(localStorage.getItem(KEY)||'{}');
-
-  const state={
-    title:saved.title||'Challenge',
-    items:Array.isArray(saved.items)&&saved.items.length?saved.items:['Pistol','SMG','Shotgun','AR','Sniper'],
-    mode:saved.mode||'list',
-    progressive:!!saved.progressive,
-    orientation:saved.orientation||'horizontal',
-    align:saved.align || 'center',        // ← NEW
-    scale:saved.scale||1,
-    insets:saved.insets||'36,48,36,48',
-    current:saved.current||0,
-    done:Array.isArray(saved.done)?saved.done:[]
+  const DEFAULT_STATE = {
+    title:'Challenge',
+    items:['Pistol','SMG','Shotgun','AR','Sniper'],
+    mode:'list',
+    progressive:false,
+    orientation:'horizontal',
+    align:'center',
+    scale:1,
+    insets:'36,48,36,48',
+    current:0,
+    done:[]
   };
 
-
-  // wheel physics (sent to overlay)
-  const WHEEL_VEL = 0.24;
-  const WHEEL_FRICTION = 0.985;
-
-  // theme
-  const $themeToggle=document.getElementById('themeToggle');
-  function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem(THEME_KEY, t); }
-  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
-  $themeToggle.addEventListener('click', ()=>{
-    const cur=document.documentElement.getAttribute('data-theme')||'dark';
-    applyTheme(cur==='dark'?'light':'dark');
-  });
-
-  function persist(){ localStorage.setItem(KEY, JSON.stringify({...state, wsUrl:wsUrlVal, channel:channelVal})); }
-
-  // UI helpers
-  function setModeButtons(){
-    [$btnList,$btnWheel].forEach(b=>b.classList.remove('active'));
-    (state.mode==='list'?$btnList:$btnWheel).classList.add('active');
-  }
-  function setOrientationButtons(){
-    [$btnH,$btnV].forEach(b=>b.classList.remove('active'));
-    (state.orientation==='horizontal'?$btnH:$btnV).classList.add('active');
-  }
-
-  function setAlignmentButtons(){
-    [$alignLeft, $alignCenter, $alignRight].forEach(b => b.classList.remove('active'));
-    if (state.align === 'left')   $alignLeft.classList.add('active');
-    if (state.align === 'center') $alignCenter.classList.add('active');
-    if (state.align === 'right')  $alignRight.classList.add('active');
-  }
-
-  function renderPreview(){
-    $previewTitle.textContent = state.title;
-    $previewTitle.style.display = state.title ? 'inline-block' : 'none';
-    $previewCard.classList.toggle('pvProgressive', !!state.progressive);
-    setModeButtons();
-    setOrientationButtons();
-    setAlignmentButtons();
-  }
-
-  // ===== Preview scaling
-  function fitPreview(){
-    if(!$previewEmbed || !$previewStage) return;
-    const BASE_W=1280, BASE_H=720;
-    const rect=$previewEmbed.getBoundingClientRect();
-    const scale=Math.max(0.1, Math.min(rect.width/BASE_W, rect.height/BASE_H));
-    $previewStage.style.setProperty('--pvScale', scale);
-  }
-  const ro = new ResizeObserver(()=>fitPreview());
-  ro.observe($previewEmbed);
-  window.addEventListener('resize', fitPreview);
-
-  // ===== Draggable divider
-  (function restoreLeftWidth(){
-    const savedW=parseInt(localStorage.getItem(LEFT_KEY),10);
-    if(!isNaN(savedW)){ document.documentElement.style.setProperty('--leftWidth', savedW+'px'); }
-  })();
-  let dragging=false, startX=0, startWidth=0;
-  function onDown(e){
-    dragging=true; startX=e.clientX; startWidth=$left.getBoundingClientRect().width;
-    document.body.style.cursor='col-resize';
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }
-  function onMove(e){
-    if(!dragging) return;
-    const dx=e.clientX-startX;
-    const newW=Math.max(340, Math.min(900, startWidth+dx));
-    document.documentElement.style.setProperty('--leftWidth', newW+'px');
-    localStorage.setItem(LEFT_KEY, String(newW));
-    fitPreview();
-  }
-  function onUp(){
-    dragging=false; document.body.style.cursor='';
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  }
-  $divider.addEventListener('mousedown', onDown);
-
-  // ===== Overlay iframe URL
-  let wsUrlVal = saved.wsUrl || 'ws://127.0.0.1:17311';
-  let channelVal = saved.channel || 'obs_challenge_overlay';
-  $wsUrl.value = wsUrlVal; $channel.value = channelVal;
-
-  
-  function overlayUrl(){
-    const params=new URLSearchParams({
-      ws: wsUrlVal,
-      channel: channelVal,
-      frame: '1',
-      mute: '1',
-      insets: state.insets || '36,48,36,48'
-    });
-    // If the file has a different name or path, update here:
-    return `overlay.html?${params.toString()}`;
-  }
-  function updatePreviewSrc(){
-    const ifr=document.getElementById('overlayPreview');
-    if(ifr) ifr.src=overlayUrl();
-  }
-
-  // ===== WebSocket plumbing
-  let ws=null, backoff=800;
-  function setStatus(s){ $status.textContent=s; }
-  function connect(){
-    try{ ws=new WebSocket(wsUrlVal); }catch(e){ setStatus('error'); return; }
-    ws.onopen=()=>{ setStatus('connected'); backoff=800; ws.send(JSON.stringify({type:'register',role:'panel',channel:channelVal})); sendState(); };
-    ws.onmessage=(ev)=>{ try{ const msg=JSON.parse(ev.data); if(msg.type==='request-state'){ sendState(); } }catch(e){} };
-    ws.onclose=()=>{ setStatus('disconnected'); setTimeout(connect, backoff); backoff=Math.min(backoff*1.6,5000); };
-    ws.onerror=()=>{ setStatus('error'); try{ws.close();}catch(e){} };
-  }
-  function sendCmd(cmd,payload){ try{ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({type:'cmd',channel:channelVal,cmd,payload})); } }catch(e){} }
-  function sendState(){ try{ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({type:'state',channel:channelVal,payload:state})); } }catch(e){} }
-
-  // Mirror-only (local) state so the title/prog buttons reflect current state
-  function applyCmdLocally(cmd, payload){
-    switch(cmd){
-      case 'prev':
-        state.current = Math.max(0, state.current-1);
-        break;
-      case 'next':
-        if(state.mode==='list'){
-          if(state.progressive){
-            if(!state.done.includes(state.current)) state.done=[...state.done, state.current];
-            state.current=Math.min(state.items.length-1, state.current+1);
-          }else{
-            state.current=Math.min(state.items.length-1, state.current+1);
-          }
-        }
-        break;
-      case 'toggleDone':
-        if(state.done.includes(state.current)) state.done=state.done.filter(i=>i!==state.current);
-        else state.done=[...state.done, state.current];
-        break;
-      case 'reset':
-        state.current=0; state.done=[];
-        break;
-      case 'goto':
-        if(Number.isInteger(payload)) state.current=Math.max(0, Math.min(state.items.length-1, payload));
-        break;
-      case 'spin':
-      case 'stop':
-        // no local spin; iframe overlay handles visuals
-        break;
-    }
-    persist(); renderPreview();
-  }
-
-  // ===== Keybinds (configurable)
-  const BINDS_KEY = 'controller_binds_v1';
   const DEFAULT_BINDS = {
     next:  ['Enter','Space'],
     prev:  ['Backspace','ArrowLeft'],
     toggle:['KeyD'],
     reset: ['KeyR'],
   };
-  const binds = JSON.parse(localStorage.getItem(BINDS_KEY) || 'null') || DEFAULT_BINDS;
 
+  const WHEEL_VEL = 0.24;
+  const WHEEL_FRICTION = 0.985;
+
+  const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+  const debounce = (fn,ms=120)=>{ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; };
+  const safeParse = j => { try { return JSON.parse(j); } catch { return null; } };
+
+  // ===================== DOM =====================
+  const $ = (sel)=>document.querySelector(sel);
+  const el = {
+    wsUrl: $('#wsUrl'), channel: $('#channel'), status: $('#status'),
+    title: $('#title'), items: $('#items'), chkProg: $('#chkProg'),
+    btnList: $('#btnList'), btnWheel: $('#btnWheel'),
+    btnH: $('#btnH'), btnV: $('#btnV'),
+    alignLeft: $('#alignLeft'), alignCenter: $('#alignCenter'), alignRight: $('#alignRight'),
+    scale: $('#scale'), insets: $('#insets'),
+    applyItems: $('#applyItems'), reset: $('#reset'), prev: $('#prev'), next: $('#next'),
+    toggleDone: $('#toggleDone'), goto1: $('#goto1'), spin: $('#spin'), stop: $('#stop'),
+    previewCard: $('#previewCard'), previewTitle: $('#previewTitle'),
+    previewEmbed: $('#previewEmbed'), previewStage: $('#previewStage'),
+    overlayPreview: $('#overlayPreview'),
+    divider: $('#divider'), left: document.querySelector('.left'),
+    themeToggle: $('#themeToggle')
+  };
+
+  // ===================== Load persisted =====================
+  const saved = safeParse(localStorage.getItem(KEY)) || {};
+  const state = Object.assign({}, DEFAULT_STATE, {
+    title: saved.title ?? DEFAULT_STATE.title,
+    items: Array.isArray(saved.items) && saved.items.length ? saved.items : DEFAULT_STATE.items,
+    mode: saved.mode ?? DEFAULT_STATE.mode,
+    progressive: !!saved.progressive,
+    orientation: saved.orientation ?? DEFAULT_STATE.orientation,
+    align: saved.align ?? DEFAULT_STATE.align,
+    scale: saved.scale ?? DEFAULT_STATE.scale,
+    insets: saved.insets ?? DEFAULT_STATE.insets,
+    current: saved.current ?? 0,
+    done: Array.isArray(saved.done) ? saved.done : []
+  });
+
+  let wsUrlVal = saved.wsUrl || 'ws://127.0.0.1:17311';
+  let channelVal = saved.channel || 'obs_challenge_overlay';
+
+  const binds = safeParse(localStorage.getItem(BINDS_KEY)) || DEFAULT_BINDS;
+
+  // ===================== Theme =====================
+  function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); localStorage.setItem(THEME_KEY, t); }
+  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+  el.themeToggle.addEventListener('click', ()=>{
+    const cur=document.documentElement.getAttribute('data-theme')||'dark';
+    applyTheme(cur==='dark'?'light':'dark');
+  });
+
+  // ===================== Persist helpers =====================
+  function persist(){
+    localStorage.setItem(KEY, JSON.stringify({...state, wsUrl:wsUrlVal, channel:channelVal}));
+  }
+  const persistDebounced = debounce(persist, 100);
+
+  // ===================== UI sync helpers =====================
+  function setActive(group){
+    group.forEach(btn => btn.classList.remove('active'));
+    return (id)=>{ const b = document.getElementById(id); if (b) b.classList.add('active'); };
+  }
+  const setModeActive = setActive([el.btnList, el.btnWheel]);
+  const setOrientActive = setActive([el.btnH, el.btnV]);
+  function setAlignActive(){
+    [el.alignLeft, el.alignCenter, el.alignRight].forEach(b=>b.classList.remove('active'));
+    ({left:el.alignLeft, center:el.alignCenter, right:el.alignRight}[state.align])?.classList.add('active');
+  }
+
+  function renderPreview(){
+    el.previewTitle.textContent = state.title || '';
+    el.previewTitle.style.display = state.title ? 'inline-block' : 'none';
+    el.previewCard.classList.toggle('pvProgressive', !!state.progressive);
+    state.mode==='list' ? setModeActive('btnList') : setModeActive('btnWheel');
+    state.orientation==='horizontal' ? setOrientActive('btnH') : setOrientActive('btnV');
+    setAlignActive();
+  }
+
+  // ===================== Preview scaling =====================
+  function fitPreview(){
+    const BASE_W=1280, BASE_H=720;
+    const rect=el.previewEmbed.getBoundingClientRect();
+    const scale=Math.max(0.1, Math.min(rect.width/BASE_W, rect.height/BASE_H));
+    el.previewStage.style.setProperty('--pvScale', scale);
+  }
+  new ResizeObserver(fitPreview).observe(el.previewEmbed);
+  window.addEventListener('resize', fitPreview);
+
+  // ===================== Divider drag =====================
+  (function restoreLeftWidth(){
+    const savedW=parseInt(localStorage.getItem(LEFT_KEY),10);
+    if(!isNaN(savedW)){ document.documentElement.style.setProperty('--leftWidth', savedW+'px'); }
+  })();
+  let dragging=false, startX=0, startWidth=0;
+  el.divider.addEventListener('mousedown', (e)=>{
+    dragging=true; startX=e.clientX; startWidth=el.left.getBoundingClientRect().width;
+    document.body.style.cursor='col-resize';
+    const mm = (ev)=>{
+      if(!dragging) return;
+      const dx=ev.clientX-startX;
+      const newW=clamp(startWidth+dx, 340, 900);
+      document.documentElement.style.setProperty('--leftWidth', newW+'px');
+      localStorage.setItem(LEFT_KEY, String(newW));
+      fitPreview();
+    };
+    const mu = ()=>{
+      dragging=false; document.body.style.cursor='';
+      document.removeEventListener('mousemove', mm);
+      document.removeEventListener('mouseup', mu);
+    };
+    document.addEventListener('mousemove', mm);
+    document.addEventListener('mouseup', mu);
+  });
+
+  // ===================== Overlay URL / Preview =====================
+  function overlayUrl(){
+    const params=new URLSearchParams({
+      ws: wsUrlVal, channel: channelVal, frame: '1', mute: '1',
+      insets: state.insets || '36,48,36,48'
+    });
+    return `overlay.html?${params.toString()}`;
+  }
+  function updatePreviewSrc(){ el.overlayPreview.src = overlayUrl(); }
+
+  // ===================== WS plumbing =====================
+  let ws=null, backoff=800;
+  function setStatus(s){ el.status.textContent=s; }
+  function connect(){
+    try{ ws=new WebSocket(wsUrlVal); }catch(e){ setStatus('error'); return; }
+    ws.onopen=()=>{
+      setStatus('connected'); backoff=800;
+      ws.send(JSON.stringify({type:'register',role:'panel',channel:channelVal}));
+      sendStateNow();
+    };
+    ws.onmessage=(ev)=>{
+      const msg = safeParse(ev.data); if (!msg) return;
+      if (msg.type === 'request-state') sendStateNow();
+    };
+    ws.onclose = ()=>{ setStatus('disconnected'); setTimeout(connect, backoff); backoff=Math.min(backoff*1.6,5000); };
+    ws.onerror = ()=>{ setStatus('error'); try{ws.close();}catch{} };
+  }
+
+  function wsSend(obj){
+    try { if (ws && ws.readyState===1) ws.send(JSON.stringify(obj)); } catch {}
+  }
+  function sendCmd(cmd,payload){ wsSend({type:'cmd',channel:channelVal,cmd,payload}); }
+  const sendState = debounce(()=>wsSend({type:'state',channel:channelVal,payload:state}), 60);
+  const sendStateNow = ()=>wsSend({type:'state',channel:channelVal,payload:state});
+
+  // ===================== Local mirror of cmd for preview =====================
+  function applyCmdLocally(cmd, payload){
+    switch(cmd){
+      case 'prev': state.current = Math.max(0, state.current-1); break;
+      case 'next':
+        if(state.mode==='list'){
+          if(state.progressive){
+            if(!state.done.includes(state.current)) state.done=[...state.done, state.current];
+            state.current=Math.min(state.items.length-1, state.current+1);
+          } else {
+            state.current=Math.min(state.items.length-1, state.current+1);
+          }
+        }
+        break;
+      case 'toggleDone':
+        state.done = state.done.includes(state.current)
+          ? state.done.filter(i=>i!==state.current)
+          : [...state.done, state.current];
+        break;
+      case 'reset':
+        state.current=0; state.done=[];
+        break;
+      case 'goto':
+        if(Number.isInteger(payload)) state.current=clamp(payload, 0, Math.max(0,state.items.length-1));
+        break;
+      case 'spin':
+      case 'stop':
+        // visual spin only in overlay
+        break;
+    }
+    persistDebounced(); renderPreview();
+  }
+
+  // ===================== Inputs wiring =====================
+  // seed values
+  el.wsUrl.value = wsUrlVal; el.channel.value = channelVal;
+  el.title.value = state.title; el.items.value = state.items.join('\n');
+  el.chkProg.checked = !!state.progressive; el.scale.value = state.scale; el.insets.value = state.insets;
+
+  function saveConn(){ wsUrlVal=el.wsUrl.value.trim(); channelVal=el.channel.value.trim()||'obs_challenge_overlay'; persist(); }
+
+  el.wsUrl.addEventListener('change', ()=>{ saveConn(); try{ws&&ws.close();}catch{} connect(); updatePreviewSrc(); });
+  el.channel.addEventListener('change', ()=>{ saveConn(); try{ws&&ws.close();}catch{} connect(); updatePreviewSrc(); });
+
+  el.insets.addEventListener('change', ()=>{ state.insets=el.insets.value.trim(); persistDebounced(); sendState(); updatePreviewSrc(); });
+
+  el.title.addEventListener('input', ()=>{ state.title=el.title.value; persistDebounced(); renderPreview(); sendState(); });
+
+  // mode buttons
+  [el.btnList, el.btnWheel].forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.mode = btn.dataset.mode;
+      persistDebounced(); renderPreview(); sendState();
+    });
+  });
+
+  // progressive
+  el.chkProg.addEventListener('change', ()=>{ state.progressive=el.chkProg.checked; persistDebounced(); renderPreview(); sendState(); });
+
+  // orientation
+  [el.btnH, el.btnV].forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.orientation = btn.dataset.orient;
+      persistDebounced(); renderPreview(); sendState();
+    });
+  });
+
+  // alignment
+  [el.alignLeft, el.alignCenter, el.alignRight].forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.align = btn.dataset.align;
+      persistDebounced(); renderPreview(); sendState();
+    });
+  });
+
+  // scale
+  el.scale.addEventListener('change', ()=>{
+    state.scale = parseFloat(el.scale.value) || 1;
+    state.scale = clamp(state.scale, 0.2, 3);
+    el.scale.value = state.scale;
+    persistDebounced(); sendState();
+  });
+
+  // items
+  function setItemsFromTextarea(){
+    const arr = el.items.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    if (arr.length){ state.items=arr; state.current=0; state.done=[]; }
+    persistDebounced(); renderPreview(); sendState();
+  }
+  el.applyItems.addEventListener('click', setItemsFromTextarea);
+
+  // command buttons
+  el.reset.addEventListener('click', ()=>{ applyCmdLocally('reset'); sendStateNow(); });
+  el.prev.addEventListener('click',  ()=>{ applyCmdLocally('prev');  sendCmd('prev'); });
+  el.next.addEventListener('click',  ()=>{ applyCmdLocally('next');  sendCmd('next'); });
+  el.toggleDone.addEventListener('click', ()=>{ applyCmdLocally('toggleDone'); sendCmd('toggleDone'); });
+  el.goto1.addEventListener('click', ()=>{ applyCmdLocally('goto',0); sendCmd('goto',0); });
+  el.spin.addEventListener('click',  ()=>{
+    const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION };
+    applyCmdLocally('spin', payload); sendCmd('spin', payload);
+  });
+  el.stop.addEventListener('click', ()=>{ applyCmdLocally('stop'); sendCmd('stop'); });
+
+  // ===================== Keybinds =====================
   function captureInto(inputEl, actionKey) {
     if (!inputEl) return;
     inputEl.addEventListener('focus', () => { inputEl.value = '(press a key)'; });
     inputEl.addEventListener('keydown', (e) => {
       e.preventDefault();
-      const code = e.code || e.key; // prefer physical code where possible
+      const code = e.code || e.key;
       binds[actionKey] = [code];
       localStorage.setItem(BINDS_KEY, JSON.stringify(binds));
       inputEl.value = code;
       inputEl.blur();
     });
   }
+  const kbNext=$('#kb-next'), kbPrev=$('#kb-prev'), kbToggle=$('#kb-toggle'), kbReset=$('#kb-reset');
+  if (kbNext){  captureInto(kbNext,'next');   kbNext.value  = (binds.next  ||DEFAULT_BINDS.next).join(', '); }
+  if (kbPrev){  captureInto(kbPrev,'prev');   kbPrev.value  = (binds.prev  ||DEFAULT_BINDS.prev).join(', '); }
+  if (kbToggle){captureInto(kbToggle,'toggle');kbToggle.value= (binds.toggle||DEFAULT_BINDS.toggle).join(', '); }
+  if (kbReset){ captureInto(kbReset,'reset'); kbReset.value = (binds.reset ||DEFAULT_BINDS.reset).join(', '); }
 
-  // Central action router used by both keybinds and buttons
   function handleAction(action, value) {
     switch(action){
       case 'next':
         if(state.mode==='wheel'){
           const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION };
           applyCmdLocally('spin', payload); sendCmd('spin', payload);
-        }else{
-          applyCmdLocally('next'); sendCmd('next');
-        }
+        } else { applyCmdLocally('next'); sendCmd('next'); }
         break;
-      case 'prev':
-        applyCmdLocally('prev'); sendCmd('prev');
-        break;
-      case 'toggledone':
-        applyCmdLocally('toggleDone'); sendCmd('toggleDone');
-        break;
-      case 'reset':
-        applyCmdLocally('reset'); sendState();
-        break;
-      case 'spin':
-        {
-          const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION };
-          applyCmdLocally('spin', payload); sendCmd('spin', payload);
-        }
-        break;
-      case 'jump':
-        {
-          const n = Math.max(1, Math.min(9, parseInt(value,10) || 1));
-          const idx = n - 1; // map 1..9 to 0-based index
-          applyCmdLocally('goto', idx); sendCmd('goto', idx);
-        }
-        break;
+      case 'prev': applyCmdLocally('prev'); sendCmd('prev'); break;
+      case 'toggledone': applyCmdLocally('toggleDone'); sendCmd('toggleDone'); break;
+      case 'reset': applyCmdLocally('reset'); sendStateNow(); break;
+      case 'spin': {
+        const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION };
+        applyCmdLocally('spin', payload); sendCmd('spin', payload);
+      } break;
+      case 'jump': {
+        const n = clamp(parseInt(value,10)||1, 1, 9);
+        const idx = n - 1;
+        applyCmdLocally('goto', idx); sendCmd('goto', idx);
+      } break;
     }
   }
 
-
-  // ===== Wire inputs
-  $title.value=state.title; $items.value=state.items.join('\n'); $chkProg.checked=state.progressive; $scale.value=state.scale; $insets.value=state.insets;
-
-  function saveConn(){ wsUrlVal=$wsUrl.value.trim(); channelVal=$channel.value.trim()||'obs_challenge_overlay'; persist(); }
-
-  $wsUrl.addEventListener('change', ()=>{ saveConn(); try{ws&&ws.close();}catch(e){} connect(); updatePreviewSrc(); });
-  $channel.addEventListener('change', ()=>{ saveConn(); try{ws&&ws.close();}catch(e){} connect(); updatePreviewSrc(); });
-
-  $insets.addEventListener('change', ()=>{ state.insets=$insets.value.trim(); persist(); sendState(); updatePreviewSrc(); });
-
-  $title.addEventListener('input', ()=>{ state.title=$title.value; persist(); renderPreview(); sendState(); });
-  $btnList.addEventListener('click', ()=>{ state.mode='list'; persist(); renderPreview(); sendState(); });
-  $btnWheel.addEventListener('click', ()=>{ state.mode='wheel'; persist(); renderPreview(); sendState(); });
-  $chkProg.addEventListener('change', ()=>{ state.progressive=$chkProg.checked; persist(); renderPreview(); sendState(); });
-  $btnH.addEventListener('click', ()=>{ state.orientation='horizontal'; persist(); setOrientationButtons(); renderPreview(); sendState(); });
-  $btnV.addEventListener('click', ()=>{ state.orientation='vertical';   persist(); setOrientationButtons(); renderPreview(); sendState(); });
-  $alignLeft.addEventListener('click', () => {
-  state.align = 'left';
-    persist(); setAlignmentButtons(); renderPreview(); sendState();
-  });
-  $alignCenter.addEventListener('click', () => {
-    state.align = 'center';
-    persist(); setAlignmentButtons(); renderPreview(); sendState();
-  });
-  $alignRight.addEventListener('click', () => {
-    state.align = 'right';
-    persist(); setAlignmentButtons(); renderPreview(); sendState();
-  });
-
-  $scale.addEventListener('change', ()=>{ state.scale=parseFloat($scale.value)||1; persist(); sendState(); });
-
-  function setItemsFromTextarea(){
-    const arr=$items.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-    if(arr.length){ state.items=arr; state.current=0; state.done=[]; }
-    persist(); renderPreview(); sendState();
-  }
-  $applyItems.addEventListener('click', setItemsFromTextarea);
-
-  $reset.addEventListener('click', ()=>{ applyCmdLocally('reset'); sendState(); });
-  $prev.addEventListener('click', ()=>{ applyCmdLocally('prev'); sendCmd('prev'); });
-  $next.addEventListener('click', ()=>{ applyCmdLocally('next'); sendCmd('next'); });
-  $toggleDone.addEventListener('click', ()=>{ applyCmdLocally('toggleDone'); sendCmd('toggleDone'); });
-  $goto1.addEventListener('click', ()=>{ applyCmdLocally('goto',0); sendCmd('goto',0); });
-  $spin.addEventListener('click', ()=>{ const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION }; applyCmdLocally('spin', payload); sendCmd('spin', payload); });
-  $stop.addEventListener('click', ()=>{ applyCmdLocally('stop'); sendCmd('stop'); });
-
-    // ===== Keybind inputs wiring
-  const elNext  = document.getElementById('kb-next');
-  const elPrev  = document.getElementById('kb-prev');
-  const elTog   = document.getElementById('kb-toggle');
-  const elReset = document.getElementById('kb-reset');
-
-  if (elNext){  captureInto(elNext,'next');   elNext.value  = (binds.next  ||DEFAULT_BINDS.next).join(', '); }
-  if (elPrev){  captureInto(elPrev,'prev');   elPrev.value  = (binds.prev  ||DEFAULT_BINDS.prev).join(', '); }
-  if (elTog){   captureInto(elTog,'toggle');  elTog.value   = (binds.toggle||DEFAULT_BINDS.toggle).join(', '); }
-  if (elReset){ captureInto(elReset,'reset'); elReset.value = (binds.reset ||DEFAULT_BINDS.reset).join(', '); }
-
-
-  // Hotkeys (uses configurable binds)
   document.addEventListener('keydown', (e)=>{
     const tag=(e.target.tagName||'').toLowerCase();
     if(tag==='input' || tag==='textarea') return;
 
-    const code = e.code || e.key; // prefer code (physical key)
-    // next/spin
+    const code = e.code || e.key;
     if ((binds.next||[]).includes(code))   { e.preventDefault(); return handleAction('next'); }
     if ((binds.prev||[]).includes(code))   { e.preventDefault(); return handleAction('prev'); }
     if ((binds.toggle||[]).includes(code)) { e.preventDefault(); return handleAction('toggledone'); }
     if ((binds.reset||[]).includes(code))  { e.preventDefault(); return handleAction('reset'); }
 
-    // Orientation (kept as fixed keys, change if you want to configure them too)
-    if (code==='KeyH'){ state.orientation='horizontal'; persist(); setOrientationButtons(); renderPreview(); sendState(); }
-    else if (code==='KeyV'){ state.orientation='vertical'; persist(); setOrientationButtons(); renderPreview(); sendState(); }
+    if (code==='KeyH'){ state.orientation='horizontal'; persistDebounced(); renderPreview(); sendState(); }
+    else if (code==='KeyV'){ state.orientation='vertical'; persistDebounced(); renderPreview(); sendState(); }
 
-    // Digit 1..9 => jump
     if (/^Digit[1-9]$/.test(code)) { e.preventDefault(); return handleAction('jump', code.replace('Digit','')); }
   });
 
-
-  
-
-  // ===== Init
+  // ===================== Init =====================
   renderPreview();
   connect();
   updatePreviewSrc();
