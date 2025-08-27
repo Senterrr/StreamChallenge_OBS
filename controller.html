@@ -148,6 +148,11 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
         <button id="btnH" class="toolbtn">Horizontal</button>
         <button id="btnV" class="toolbtn">Vertical</button>
       </div>
+      <div class="field"><label>Alignment</label>
+        <button id="alignLeft"   class="toolbtn">Left</button>
+        <button id="alignCenter" class="toolbtn">Center</button>
+        <button id="alignRight"  class="toolbtn">Right</button>
+      </div>
       <div class="field"><label>Scale</label><input id="scale" class="input" type="number" step="0.05" min="0.2" max="3" value="1"></div>
       <div class="field"><label>Insets</label><input id="insets" class="input" placeholder="36,48,36,48" title="Top,Right,Bottom,Left"/></div>
     </div>
@@ -234,6 +239,10 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
   const $goto1 = document.getElementById('goto1');
   const $spin = document.getElementById('spin');
   const $stop = document.getElementById('stop');
+  const $alignLeft = document.getElementById('alignLeft');
+  const $alignCenter = document.getElementById('alignCenter');
+  const $alignRight = document.getElementById('alignRight');
+
 
   const $previewCard = document.getElementById('previewCard');
   const $previewTitle = document.getElementById('previewTitle');
@@ -256,11 +265,13 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
     mode:saved.mode||'list',
     progressive:!!saved.progressive,
     orientation:saved.orientation||'horizontal',
+    align:saved.align || 'center',        // ← NEW
     scale:saved.scale||1,
     insets:saved.insets||'36,48,36,48',
     current:saved.current||0,
     done:Array.isArray(saved.done)?saved.done:[]
   };
+
 
   // wheel physics (sent to overlay)
   const WHEEL_VEL = 0.24;
@@ -286,12 +297,21 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
     [$btnH,$btnV].forEach(b=>b.classList.remove('active'));
     (state.orientation==='horizontal'?$btnH:$btnV).classList.add('active');
   }
+
+  function setAlignmentButtons(){
+    [$alignLeft, $alignCenter, $alignRight].forEach(b => b.classList.remove('active'));
+    if (state.align === 'left')   $alignLeft.classList.add('active');
+    if (state.align === 'center') $alignCenter.classList.add('active');
+    if (state.align === 'right')  $alignRight.classList.add('active');
+  }
+
   function renderPreview(){
     $previewTitle.textContent = state.title;
     $previewTitle.style.display = state.title ? 'inline-block' : 'none';
     $previewCard.classList.toggle('pvProgressive', !!state.progressive);
     setModeButtons();
     setOrientationButtons();
+    setAlignmentButtons();
   }
 
   // ===== Preview scaling
@@ -478,6 +498,19 @@ body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor:
   $chkProg.addEventListener('change', ()=>{ state.progressive=$chkProg.checked; persist(); renderPreview(); sendState(); });
   $btnH.addEventListener('click', ()=>{ state.orientation='horizontal'; persist(); setOrientationButtons(); renderPreview(); sendState(); });
   $btnV.addEventListener('click', ()=>{ state.orientation='vertical';   persist(); setOrientationButtons(); renderPreview(); sendState(); });
+  $alignLeft.addEventListener('click', () => {
+  state.align = 'left';
+    persist(); setAlignmentButtons(); renderPreview(); sendState();
+  });
+  $alignCenter.addEventListener('click', () => {
+    state.align = 'center';
+    persist(); setAlignmentButtons(); renderPreview(); sendState();
+  });
+  $alignRight.addEventListener('click', () => {
+    state.align = 'right';
+    persist(); setAlignmentButtons(); renderPreview(); sendState();
+  });
+
   $scale.addEventListener('change', ()=>{ state.scale=parseFloat($scale.value)||1; persist(); sendState(); });
 
   function setItemsFromTextarea(){
