@@ -1,51 +1,103 @@
-// WebSocket relay with state + command routing
-// Run: node server.js  (requires: npm i ws)
-
+// ws-server/server.js
+import http from 'http';
 import { WebSocketServer } from 'ws';
+import url from 'url';
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 17311;
-const wss = new WebSocketServer({ port: PORT });
+const PORT = 17311;
+const clientsByChannel = new Map(); // channel => Set<WebSocket>
 
-// channel -> { overlays:Set<ws>, panels:Set<ws> }
-const chans = new Map();
-const meta = new WeakMap(); // ws -> {channel, role}
-
-function ensureChan(name){ if(!chans.has(name)) chans.set(name,{overlays:new Set(), panels:new Set()}); return chans.get(name); }
-function join(ws, channel, role){
-  const c = ensureChan(channel);
-  meta.set(ws,{channel, role});
-  (role==='panel'? c.panels : c.overlays).add(ws);
+function broadcastAction(channel, msgObj) {
+  const set = clientsByChannel.get(channel);
+  if (!set) return;
+  const payload = JSON.stringify(msgObj);
+  for (const ws of set) {
+    if (ws.readyState === ws.OPEN) ws.send(payload);
+  }
 }
-function leave(ws){ const m = meta.get(ws); if(!m) return; const c = chans.get(m.channel); if(c){ (m.role==='panel'? c.panels : c.overlays).delete(ws); if(!c.overlays.size && !c.panels.size) chans.delete(m.channel); } meta.delete(ws); }
-function toOverlays(channel, msg){ const c=chans.get(channel); if(!c) return; for(const ws of c.overlays) if(ws.readyState===1) ws.send(JSON.stringify(msg)); }
-function toPanels(channel, msg){ const c=chans.get(channel); if(!c) return; for(const ws of c.panels) if(ws.readyState===1) ws.send(JSON.stringify(msg)); }
 
-wss.on('connection', (ws)=>{
-  ws.on('message', data=>{
-    let msg; try{ msg = JSON.parse(String(data)); }catch{ return; }
-    if(msg.type==='register'){
-      const role = msg.role==='panel' ? 'panel' : 'overlay';
-      const channel = msg.channel || 'obs_challenge_overlay';
-      join(ws, channel, role); return;
+// 1) Single HTTP+WS server (so firewall allows one thing)
+const server = http.createServer(async (req, res) => {
+  const { pathname, query } = url.parse(req.url, true);
+
+  // Health check
+  if (pathname === '/health') {
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    return res.end('ok');
+  }
+
+  // Simple GET trigger (easy for Stream Deck “Open URL” or curl)
+  // Example: http://127.0.0.1:17311/trigger?channel=obs_challenge_overlay&action=next
+  if (pathname === '/trigger' && req.method === 'GET') {
+    const channel = query.channel || 'obs_challenge_overlay';
+    const action  = (query.action || '').toLowerCase();
+    const value   = query.value; // optional (e.g., jump index)
+    if (!action) {
+      res.writeHead(400); return res.end('missing action');
     }
-    // Commands from panel -> overlays
-    if(msg.type==='cmd'){
-      const channel = msg.channel || meta.get(ws)?.channel || 'obs_challenge_overlay';
-      toOverlays(channel, {type:'cmd', cmd:msg.cmd, payload:msg.payload}); return;
-    }
-    // State from panel -> overlays
-    if(msg.type==='state'){
-      const channel = msg.channel || meta.get(ws)?.channel || 'obs_challenge_overlay';
-      toOverlays(channel, {type:'state', payload:msg.payload}); return;
-    }
-    // Overlays may request initial state -> forward to panels
-    if(msg.type==='request-state'){
-      const channel = msg.channel || meta.get(ws)?.channel || 'obs_challenge_overlay';
-      toPanels(channel, {type:'request-state'}); return;
-    }
-  });
-  ws.on('close', ()=> leave(ws));
-  ws.on('error', ()=> leave(ws));
+    broadcastAction(channel, { type: 'remoteAction', action, value });
+    res.writeHead(204); return res.end();
+  }
+
+  // JSON POST trigger: {channel, action, value}
+  if (pathname === '/trigger' && req.method === 'POST') {
+    let body = '';
+    req.on('data', c => (body += c));
+    req.on('end', () => {
+      try {
+        const { channel = 'obs_challenge_overlay', action, value } = JSON.parse(body || '{}');
+        if (!action) { res.writeHead(400); return res.end('missing action'); }
+        broadcastAction(channel, { type: 'remoteAction', action: String(action).toLowerCase(), value });
+        res.writeHead(204); res.end();
+      } catch {
+        res.writeHead(400); res.end('bad json');
+      }
+    });
+    return;
+  }
+
+  // Fallback
+  res.writeHead(404); res.end('not found');
 });
 
-console.log(`[relay] listening on ws://127.0.0.1:${PORT}`);
+// 2) WebSocket relay
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws) => {
+  let channel = null; // assigned after first message
+
+  ws.on('message', (buf) => {
+    let msg = null;
+    try { msg = JSON.parse(buf.toString()); } catch { return; }
+
+    // Accept legacy 'register' or newer 'hello'
+    if ((msg.type === 'register' || msg.type === 'hello') && msg.channel) {
+      channel = msg.channel;
+      if (!clientsByChannel.has(channel)) clientsByChannel.set(channel, new Set());
+      clientsByChannel.get(channel).add(ws);
+      ws.send(JSON.stringify({ type: 'hello-ack', channel }));
+      return;
+    }
+
+    // Forward important channel messages
+    if (channel && (
+        msg.type === 'state' ||
+        msg.type === 'cmd' ||
+        msg.type === 'request-state' ||
+        msg.type === 'remoteAction'
+      )) {
+      broadcastAction(channel, msg);
+    }
+  });
+
+  ws.on('close', () => {
+    if (channel && clientsByChannel.has(channel)) {
+      clientsByChannel.get(channel).delete(ws);
+      if (clientsByChannel.get(channel).size === 0) clientsByChannel.delete(channel);
+    }
+  });
+});
+
+
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`[relay] listening on http/ws://127.0.0.1:${PORT}`);
+});

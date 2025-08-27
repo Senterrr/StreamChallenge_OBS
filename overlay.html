@@ -6,14 +6,46 @@
 <title>Challenge Overlay — Viewer</title>
 <style>
   :root{
-    --scale:1; --gap:10px; --frame:#ffffff66;
-    --inset-top:36px; --inset-right:48px; --inset-bottom:36px; --inset-left:48px;
-    --pill:rgba(0,0,0,0.45); --pill-b:#ffffff24; --text:#fff; --muted:#ffffffa6;
-    --shadow:0 12px 30px rgba(0,0,0,.45);
+    /* Core */
+    --scale: 1;
+    --frame: #ffffff66;
+    --inset-top: 36px; --inset-right: 48px; --inset-bottom: 36px; --inset-left: 48px;
+    --pill: rgba(0,0,0,0.45); --pill-b: #ffffff24; --text: #fff; --muted: #ffffffa6;
+    --shadow: 0 12px 30px rgba(0,0,0,.45);
+
+    /* Title ↔ content gap (list vs wheel) */
+    --wrap-gap-list: 28px;   /* space between title and list */
+    --wrap-gap-wheel: 12px;  /* space between title and wheel */
+
+    /* LIST spacing (A: default) */
+    --list-gap: 0px;         /* gap between list items (non-negative) */
+    --pill-pad-y: 8px;      /* pill inner padding */
+    --pill-pad-x: 14px;
+
+    /* Highlight spacing */
+    --current-extra-gap: 8px; /* extra breathing room around current item */
+
+    /* LIST spacing (B: optional “tighter than zero”) */
+    --pull: 0px;             /* set >0 (e.g., 6px) to pull items together via negative margins */
+
+
+
+      /* accents for title + selected item */
+  --accent1: #7c3aed;                /* purple */
+  --accent2: #22d3ee;                /* cyan  */
+  --accent1-soft: rgba(124,58,237,.36);
+  --accent2-soft: rgba(34,211,238,.36);
+  --accent-ring: rgba(124,58,237,.35); /* outer glow ring for selected */
   }
+
   html,body{height:100%}
-  body{margin:0;background:transparent;color:var(--text);
-       font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;overflow:hidden}
+  body{
+    margin:0;
+    background:transparent !important; /* keep page transparent for OBS */
+    color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;
+    overflow:hidden;
+  }
 
   .viewport{position:absolute;inset:var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);pointer-events:none}
   .frame{position:absolute;inset:var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
@@ -21,37 +53,92 @@
 
   .root{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
         transform:scale(var(--scale));transform-origin:center}
-  .wrap{display:flex;gap:var(--gap);align-items:center;justify-content:center}
-  .wrap.stack{flex-direction:column}
-  .title{padding:8px 12px;font-weight:900;font-size:22px;border-radius:12px;
-         background:linear-gradient(135deg,#7c3aed36,#22d3ee36);border:1px solid #ffffff24;
-         text-shadow:0 2px 8px #00000099}
 
-  .bar{display:flex;align-items:center;gap:var(--gap)}
+  /* Title ↔ content gap per mode */
+  .wrap{display:flex;gap:var(--wrap-gap-list);align-items:center;justify-content:center}
+  body.is-wheel .wrap{ gap: var(--wrap-gap-wheel); }
+  .wrap.stack{flex-direction:column}
+
+  /* Title: small in list, big in wheel (wheel size set via --titleWheelSize) */
+  .title{
+    padding:12px 18px;
+    font-weight:900;
+    font-size:22px;            /* list mode size */
+    border-radius:12px;
+    background: linear-gradient(135deg, var(--accent1-soft), var(--accent2-soft));
+    border:1px solid #ffffff24;
+    text-shadow:0 2px 8px #00000099;
+    
+  }
+  body.is-wheel .title{ font-size: var(--titleWheelSize, 64px); }
+
+  /* List layout */
+  .bar{display:flex;align-items:center;gap:var(--list-gap)}
   .bar.vertical{flex-direction:column;align-items:stretch}
 
-  .pill{position:relative;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;
-        background:var(--pill);border:1px solid var(--pill-b);box-shadow:var(--shadow);user-select:none}
-  .pill .check{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;
-               border-radius:50%;border:1px solid #ffffff80;margin-right:2px;font-weight:900;font-size:12px;
-               opacity:0;transition:opacity .15s ease}
-  .pill .idx{font-weight:900;font-size:12px;opacity:.9;background:#ffffff1f;padding:2px 6px;border-radius:999px}
-  .pill .label{font-weight:800;font-size:18px;text-shadow:0 2px 8px #0009}
-  .pill.current{background:linear-gradient(135deg,#7c3aed66,#22d3ee66);border-color:#ffffffaa}
+  /* (B) Optional pull: negative margins to get tighter-than-zero spacing
+     Set --pull > 0 (e.g., 6px). Keep --list-gap small (0–4px) when using pull. */
+  .bar:not(.vertical) .pill{ margin-left: calc(-1 * var(--pull)); }
+  .bar:not(.vertical) .pill:first-child{ margin-left: 0; }
+  .bar.vertical .pill{ margin-top: calc(-1 * var(--pull)); }
+  .bar.vertical .pill:first-child{ margin-top: 0; }
+
+  /* Pills */
+  .pill{
+    position:relative;display:flex;align-items:center;gap:10px;
+    padding:var(--pill-pad-y) var(--pill-pad-x);
+    border-radius:999px;background:var(--pill);border:1px solid var(--pill-b);
+    box-shadow:var(--shadow);user-select:none
+  }
+  .pill .check{
+    width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;
+    border-radius:50%;border:1px solid #ffffff80;margin-right:2px;font-weight:900;font-size:12px;
+    opacity:0;transition:opacity .15s ease
+  }
+  .pill .idx{font-weight:900;font-size:24px;opacity:.9;background:#ffffff1f;padding:2px 6px;border-radius:999px}
+  .pill .label{font-weight:800;font-size:36px;text-shadow:0 2px 8px #0009}
+
+  /* Selected (opaque highlight) */
+.pill.current{
+  background: linear-gradient(135deg, var(--accent1), var(--accent2)); /* solid & bright */
+  border-color: var(--accent2);
+  color: #fff;
+  /* subtle white ring + accent glow + existing drop shadow */
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,.22),
+    0 0 0 6px var(--accent-ring),
+    var(--shadow);
+  transform: translateZ(0) scale(1.03);
+  opacity: 1;
+}
+.pill.current .check{ opacity: 1 !important; border-color: #fff; }
+.pill.done.current{ opacity: 1 !important; filter: none !important; }
+
   .pill.done .check{opacity:1}
 
-  /* darker for not-done list items (overlay) */
-  .bar .pill:not(.done){ background: rgba(0,0,0,0.62); border-color: #ffffff2a; }
+  /* Extra breathing room around the current item */
+  .bar .pill.current{ margin-inline: var(--current-extra-gap); }
+  .bar.vertical .pill.current{ margin-inline:0; margin-block: var(--current-extra-gap); }
 
+  /* Darker for not-done list items */
+  .bar .pill:not(.done):not(.current){
+    background:#0e0e10;
+    border-color:#ffffff33;
+  }
   /* Progressive look */
-  body.progressive .pill{transform:scale(.72);opacity:.85}
-  body.progressive .pill.current{transform:translateY(-1px) scale(1.22)}
-  /* Only fade done items when Progressive is ON */
-  body.progressive .pill.done{opacity:.35}
+  body.progressive .pill{ transform:scale(.72); opacity:.85; }
+  body.progressive .pill.current{ transform:translateY(-1px) scale(1.18); opacity:1; }
+  body.progressive .pill.done{ opacity:.35; }
 
   /* Wheel */
   .wheelWrap{display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px}
   .wheelReadout{font-weight:900}
+  .wheelWrap canvas, .wheelWrap svg{ opacity:1 !important; mix-blend-mode:normal !important; }
+
+  /* Safety: remove accidental blending */
+  .overlay-root, .app, .wheelWrap, .bar, .pill{
+    opacity:1 !important; filter:none !important; mix-blend-mode:normal !important;
+  }
 </style>
 </head>
 <body>
@@ -62,7 +149,7 @@
         <div id="title" class="title"></div>
         <div id="bar" class="bar" role="list"></div>
         <div id="wheelWrap" class="wheelWrap">
-          <canvas id="wheelCanvas" width="480" height="480"></canvas>
+          <canvas id="wheelCanvas" width="1280" height="1280"></canvas>
           <div class="wheelReadout" id="wheelResult"></div>
         </div>
       </div>
@@ -118,16 +205,38 @@
     return d;
   }
 
+  function updateTitleSize(){
+  const isWheel = (state.mode === 'wheel');
+  if (isWheel){
+    const w  = $wheelCanvas.width || 480;
+    const px = Math.max(32, Math.round(w / 18)); // tune divisor to taste
+    document.documentElement.style.setProperty('--titleWheelSize', px + 'px');
+  } else {
+    document.documentElement.style.removeProperty('--titleWheelSize');
+  }
+}
+
+
+
   function render(){
     $title.textContent=state.title||''; $title.style.display=state.title?'block':'none';
     $bar.innerHTML=''; state.items.forEach((label,i)=> $bar.appendChild(pill(label,i)) );
-    applyScale(); applyOrientation(); applyProgressive(); toggleViews(); redrawWheel();
+    applyScale(); applyOrientation(); applyProgressive(); toggleViews(); redrawWheel(); updateTitleSize();
   }
 
-  function toggleViews(){ $wheelWrap.style.display=(state.mode==='wheel')?'flex':'none'; $bar.style.display=(state.mode==='wheel')?'none':'flex'; }
+function toggleViews(){
+  const isWheel = (state.mode === 'wheel');
+  $wheelWrap.style.display = isWheel ? 'flex' : 'none';
+  $bar.style.display       = isWheel ? 'none'  : 'flex';
+  document.body.classList.toggle('is-wheel', isWheel);   // <— add this line
+}
+
 
   // ===== Wheel
   const ctx=$wheelCanvas.getContext('2d');
+  ctx.globalAlpha = 1.0;
+  ctx.globalCompositeOperation = 'source-over'; // avoid 'lighter', 'screen', etc.
+
   let angle=0, vel=0, spinning=false, resultIdx=null, lastTickIdx=null, raf=null, FRICTION=0.985;
   const baseColors=['#7c3aedcc','#22d3eecc','#10b981cc'];
 
@@ -170,7 +279,7 @@
       ctx.strokeStyle='#ffffff66'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
 
       ctx.save(); ctx.translate(cx,cy); const mid=a0+(step/2); ctx.rotate(mid);
-      ctx.textAlign='right'; ctx.font='bold 18px system-ui,Segoe UI,Arial'; ctx.fillStyle='#fff';
+      ctx.textAlign='right'; ctx.font='bold 80px system-ui,Segoe UI,Arial'; ctx.fillStyle='#fff';
       ctx.shadowColor='rgba(0,0,0,.75)'; ctx.shadowBlur=12; ctx.fillText(state.items[i]||'', r-14, 6);
       ctx.restore();
     }
@@ -183,9 +292,9 @@
       const rimY  = -r;
 
       // Tip just inside the wheel; base slightly outside to overlap background
-      const tipY  = rimY + 30;   // points down into the wheel
-      const baseY = rimY - 22;   // outside the rim
-      const halfW = 16;          // half width of the base
+      const tipY  = rimY + 100;   // points down into the wheel
+      const baseY = rimY - 60;   // outside the rim
+      const halfW = 100;          // half width of the base
 
 
       ctx.beginPath();
@@ -316,6 +425,8 @@ function sweep({from=300, to=900, dur=300, type='sine', vol=0.05}={}){
     ws.onerror=()=>{ try{ws.close();}catch(e){} };
   }
 
+
+  
   function handleCmd({cmd,payload}){
     switch(cmd){
       case 'prev':

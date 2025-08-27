@@ -107,9 +107,21 @@
     width:1280px; height:720px; border:0;
     pointer-events:none; /* remove if you want to click inside the preview */
   }
-
   /* Progressive fade flag (just keeps compatibility with overlay state) */
   #previewCard.pvProgressive .pill.done{ opacity:.35; }
+  /* put this in your <style> block */
+  .keybinds-panel { display:flex; flex-wrap:wrap; gap:12px; }
+  .keybinds-panel label { display:flex; align-items:center; gap:8px; }
+  .key-input { width: 160px; } /* keeps them small */
+
+
+  /* default arrow over containers */
+body, .wrap, .left, .right, .card, .panel, .previewBody, .previewEmbed { cursor: default; }
+/* keep pointer on buttons */
+.toolbtn, .modebtn { cursor: pointer; }
+/* keep I-beam only where typing is possible */
+.input, .textarea, input[type="text"], input[type="number"], textarea { cursor: text; }
+
 </style>
 </head>
 <body>
@@ -164,9 +176,23 @@
         Hotkeys (focus this tab): Enter/Space = Next/Progress (List) or Spin (Wheel) · ←/Backspace = Prev · D = Toggle Done · <b>R = Reset</b> · H/V = Orientation
       </div>
     </div>
+
+     <div class="card" id="keybindsCard" style="margin-top:12px">
+      <h3>Keybinds</h3>
+      <div class="panel" style="gap:12px;flex-wrap:wrap">
+        <label>Next/Spin <input id="kb-next"  class="input" placeholder="Enter/Space"/></label>
+        <label>Prev <input id="kb-prev"  class="input" placeholder="Backspace/Left"/></label>
+        <label>Toggle Done <input id="kb-toggle" class="input" placeholder="D"/></label>
+        <label>Reset <input id="kb-reset" class="input" placeholder="R"/></label>
+      </div>
+      <div class="hint">Click a box, press a key. Saved automatically.</div>
+    </div>
   </div>
+ 
+
 
   <div class="divider" id="divider" role="separator" aria-orientation="vertical" aria-label="Resize panels"></div>
+
 
   <div class="right">
     <div class="title">Preview</div>
@@ -312,6 +338,7 @@
   let channelVal = saved.channel || 'obs_challenge_overlay';
   $wsUrl.value = wsUrlVal; $channel.value = channelVal;
 
+  
   function overlayUrl(){
     const params=new URLSearchParams({
       ws: wsUrlVal,
@@ -375,6 +402,66 @@
     persist(); renderPreview();
   }
 
+  // ===== Keybinds (configurable)
+  const BINDS_KEY = 'controller_binds_v1';
+  const DEFAULT_BINDS = {
+    next:  ['Enter','Space'],
+    prev:  ['Backspace','ArrowLeft'],
+    toggle:['KeyD'],
+    reset: ['KeyR'],
+  };
+  const binds = JSON.parse(localStorage.getItem(BINDS_KEY) || 'null') || DEFAULT_BINDS;
+
+  function captureInto(inputEl, actionKey) {
+    if (!inputEl) return;
+    inputEl.addEventListener('focus', () => { inputEl.value = '(press a key)'; });
+    inputEl.addEventListener('keydown', (e) => {
+      e.preventDefault();
+      const code = e.code || e.key; // prefer physical code where possible
+      binds[actionKey] = [code];
+      localStorage.setItem(BINDS_KEY, JSON.stringify(binds));
+      inputEl.value = code;
+      inputEl.blur();
+    });
+  }
+
+  // Central action router used by both keybinds and buttons
+  function handleAction(action, value) {
+    switch(action){
+      case 'next':
+        if(state.mode==='wheel'){
+          const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION };
+          applyCmdLocally('spin', payload); sendCmd('spin', payload);
+        }else{
+          applyCmdLocally('next'); sendCmd('next');
+        }
+        break;
+      case 'prev':
+        applyCmdLocally('prev'); sendCmd('prev');
+        break;
+      case 'toggledone':
+        applyCmdLocally('toggleDone'); sendCmd('toggleDone');
+        break;
+      case 'reset':
+        applyCmdLocally('reset'); sendState();
+        break;
+      case 'spin':
+        {
+          const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION };
+          applyCmdLocally('spin', payload); sendCmd('spin', payload);
+        }
+        break;
+      case 'jump':
+        {
+          const n = Math.max(1, Math.min(9, parseInt(value,10) || 1));
+          const idx = n - 1; // map 1..9 to 0-based index
+          applyCmdLocally('goto', idx); sendCmd('goto', idx);
+        }
+        break;
+    }
+  }
+
+
   // ===== Wire inputs
   $title.value=state.title; $items.value=state.items.join('\n'); $chkProg.checked=state.progressive; $scale.value=state.scale; $insets.value=state.insets;
 
@@ -408,25 +495,40 @@
   $spin.addEventListener('click', ()=>{ const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION }; applyCmdLocally('spin', payload); sendCmd('spin', payload); });
   $stop.addEventListener('click', ()=>{ applyCmdLocally('stop'); sendCmd('stop'); });
 
-  // Hotkeys
+    // ===== Keybind inputs wiring
+  const elNext  = document.getElementById('kb-next');
+  const elPrev  = document.getElementById('kb-prev');
+  const elTog   = document.getElementById('kb-toggle');
+  const elReset = document.getElementById('kb-reset');
+
+  if (elNext){  captureInto(elNext,'next');   elNext.value  = (binds.next  ||DEFAULT_BINDS.next).join(', '); }
+  if (elPrev){  captureInto(elPrev,'prev');   elPrev.value  = (binds.prev  ||DEFAULT_BINDS.prev).join(', '); }
+  if (elTog){   captureInto(elTog,'toggle');  elTog.value   = (binds.toggle||DEFAULT_BINDS.toggle).join(', '); }
+  if (elReset){ captureInto(elReset,'reset'); elReset.value = (binds.reset ||DEFAULT_BINDS.reset).join(', '); }
+
+
+  // Hotkeys (uses configurable binds)
   document.addEventListener('keydown', (e)=>{
     const tag=(e.target.tagName||'').toLowerCase();
     if(tag==='input' || tag==='textarea') return;
-    const k=e.key.toLowerCase();
-    if(k==='enter'||k===' '){
-      e.preventDefault();
-      if(state.mode==='wheel'){
-        const payload={ vel:WHEEL_VEL, friction:WHEEL_FRICTION };
-        applyCmdLocally('spin', payload); sendCmd('spin', payload);
-      }else{
-        applyCmdLocally('next'); sendCmd('next');
-      }
-    }else if(k==='arrowleft'||k==='backspace'){ e.preventDefault(); applyCmdLocally('prev'); sendCmd('prev'); }
-    else if(k==='d'){ applyCmdLocally('toggleDone'); sendCmd('toggleDone'); }
-    else if(k==='r'){ applyCmdLocally('reset'); sendState(); }
-    else if(k==='h'){ state.orientation='horizontal'; persist(); setOrientationButtons(); renderPreview(); sendState(); }
-    else if(k==='v'){ state.orientation='vertical';   persist(); setOrientationButtons(); renderPreview(); sendState(); }
+
+    const code = e.code || e.key; // prefer code (physical key)
+    // next/spin
+    if ((binds.next||[]).includes(code))   { e.preventDefault(); return handleAction('next'); }
+    if ((binds.prev||[]).includes(code))   { e.preventDefault(); return handleAction('prev'); }
+    if ((binds.toggle||[]).includes(code)) { e.preventDefault(); return handleAction('toggledone'); }
+    if ((binds.reset||[]).includes(code))  { e.preventDefault(); return handleAction('reset'); }
+
+    // Orientation (kept as fixed keys, change if you want to configure them too)
+    if (code==='KeyH'){ state.orientation='horizontal'; persist(); setOrientationButtons(); renderPreview(); sendState(); }
+    else if (code==='KeyV'){ state.orientation='vertical'; persist(); setOrientationButtons(); renderPreview(); sendState(); }
+
+    // Digit 1..9 => jump
+    if (/^Digit[1-9]$/.test(code)) { e.preventDefault(); return handleAction('jump', code.replace('Digit','')); }
   });
+
+
+  
 
   // ===== Init
   renderPreview();
