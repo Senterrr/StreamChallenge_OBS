@@ -193,6 +193,24 @@
   const debounce = (fn,ms=120)=>{ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; };
   const safeParse = j => { try { return JSON.parse(j); } catch { return null; } };
 
+  // --- Exclusive "active" toggling for button groups (mode / orient / align)
+// Put these once, above renderPreview()
+function setExclusiveActive(root, dataKey, currentValue){
+  const sel = `[data-${dataKey}]`;
+  root.querySelectorAll(sel).forEach(btn => {
+    btn.classList.toggle('active', String(btn.dataset[dataKey]) === String(currentValue));
+  });
+}
+
+function updateActives(){
+  setExclusiveActive(document, 'mode',   state.mode);        // expects data-mode="list|wheel"
+  setExclusiveActive(document, 'orient', state.orientation); // expects data-orient="horizontal|vertical"
+  setExclusiveActive(document, 'align',  state.align);       // expects data-align="left|center|right"
+}
+
+// (Optional) call this whenever you programmatically tweak state.*
+// We'll also call it from renderPreview() below.
+
   // ===================== DOM =====================
   const $ = (sel)=>document.querySelector(sel);
   const el = {
@@ -261,9 +279,7 @@
     el.previewTitle.textContent = state.title || '';
     el.previewTitle.style.display = state.title ? 'inline-block' : 'none';
     el.previewCard.classList.toggle('pvProgressive', !!state.progressive);
-    state.mode==='list' ? setModeActive('btnList') : setModeActive('btnWheel');
-    state.orientation==='horizontal' ? setOrientActive('btnH') : setOrientActive('btnV');
-    setAlignActive();
+    updateActives();
   }
 
   // ===================== Preview scaling =====================
