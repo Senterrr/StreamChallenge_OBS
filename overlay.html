@@ -58,22 +58,62 @@
   body.completed .bar{opacity:0;transform:translateY(6px);pointer-events:none}
 
   /* Slots mode */
+/* --- Slots visual polish --- */
 .slotsWrap{ display:none; align-items:center; justify-content:center; flex-direction:column; gap:16px; width:100% }
+
 .slotsReels{ display:flex; gap:18px }
+
 .reel{
-  width:200px; height:220px; overflow:hidden;
-  border-radius:14px; border:1px solid #ffffff22; background:rgba(0,0,0,.35);
-  box-shadow: var(--shadow); position:relative;
+  width:200px; height:220px; overflow:hidden; position:relative;
+  border-radius:14px; border:1px solid #ffffff28;
+  background:
+    radial-gradient(140% 100% at 50% 0%, rgba(255,255,255,.08), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.2));
+  box-shadow: 0 8px 24px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04);
 }
+.reel::before{ /* faint highlight bezel */
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  pointer-events:none;
+}
+
 .strip{ position:absolute; left:0; top:0; width:100%; will-change: transform }
+
+/* ensure total height = 110, not 110 + padding */
 .strip .cell{
   display:flex; align-items:center; justify-content:center; flex-direction:column;
-  width:100%; height:110px; padding:10px 6px; text-align:center;
+  width:100%; height:110px; box-sizing: border-box; /* ← add this */
+  padding:10px 6px; text-align:center;
 }
-.strip .cell img{ width:80px; height:80px; object-fit:contain; image-rendering:auto;
-  filter: drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
+
+
+.strip .cell img{
+  width:80px; height:80px; object-fit:contain; image-rendering:auto;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,.5));
+  transition: filter .15s ease;
+}
+
+/* subtle motion blur while spinning */
+.slotsWrap.spinning .strip{ filter: blur(1.1px); }
+.slotsWrap:not(.spinning) .strip{ filter: none; }
+
+/* invert option */
+.slotsWrap.invert img{ filter: invert(1) brightness(1.6) drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+
+/* labels under reels */
 .slotsLabels{ display:flex; gap:18px; font-weight:900 }
-.slotsLabels .label{ width:200px; text-align:center; font-size:18px; text-shadow:0 2px 8px #0009 }
+.slotsLabels .label{
+  width:200px; text-align:center; font-size:18px;
+  text-shadow:0 2px 8px #0009; opacity:.92;
+}
+/* selection window glow */
+.reel::after{
+  content:''; position:absolute; left:0; right:0;
+  top: calc(50% - 55px); height:110px;  /* same as CELL_H */
+  border-radius:10px;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.18), inset 0 0 24px rgba(124,58,237,.22);
+  pointer-events:none;
+}
 
 
 </style>
@@ -380,18 +420,24 @@
     if (!completed && allDone()) completeChallenge();
   }
 
-  // ---------- SLOTS MODE (Legend • Weapon • Weapon) ----------
-const REEL_HEIGHT = 220;   // keep in sync with CSS
-const CELL_HEIGHT = 110;   // keep in sync with CSS
-const REEL_STOP_STAGGER = 0.5; // seconds between reel stops
+// ---------- SLOTS MODE (Legend • Weapon • Weapon) ----------
+const REEL_VIEW_H   = 220;   // .reel height
+const CELL_H        = 110;   // EXACT .cell height
+const CENTER_OFFSET = Math.round((REEL_VIEW_H - CELL_H) / 2);
+
+// NEW: render many copies so we can do multiple loops safely
+const COPIES = 10;           // use 10 copies of the list in the strip
+const LOOPS  = 3;            // number of full loops before stopping (safe both directions)
+const DIR    = 'down';       // 'down' for classic feel, 'up' if you prefer the other way
+
 
 let slotsSpinning = false;
 let slotsRAF = null;
 
 const reels = [
-  { el: el.reel0, t: 0, targetIdx: 0, list: [] },
-  { el: el.reel1, t: 0, targetIdx: 0, list: [] },
-  { el: el.reel2, t: 0, targetIdx: 0, list: [] },
+  { el: el.reel0, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0 },
+  { el: el.reel1, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0 },
+  { el: el.reel2, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0 },
 ];
 let chosen = [{name:'',src:''},{name:'',src:''},{name:'',src:''}];
 
@@ -403,32 +449,42 @@ function cleanNameFromFile(src, fallback=''){
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : fallback;
   }catch{ return fallback; }
 }
+
 function makeCellsHTML(list){
-  const ext = [...list, ...list, ...list];
-  return ext.map(it=>{
-    const name = it.name || cleanNameFromFile(it.src,'');
-    return `<div class="cell"><img src="${it.src}" alt="${name}"></div>`;
-  }).join('');
+  const out = [];
+  for (let c=0; c<COPIES; c++){
+    for (const it of list){
+      const name = it.name || cleanNameFromFile(it.src,'');
+      const src  = it.src?.startsWith('/') ? it.src : '/' + (it.src||'').replace(/^\/+/, '');
+      out.push(`<div class="cell"><img src="${src}" alt="${name}"></div>`);
+    }
+  }
+  return out.join('');
 }
+
+
 function populateReels(){
   const S = state.slots || {};
   const legends = (S.legends||[]).filter(x=>x.enabled);
   const weapons = (S.weapons||[]).filter(x=>x.enabled);
   const L = legends.length ? legends : (S.legends||[]);
   const W = weapons.length ? weapons : (S.weapons||[]);
-
   reels[0].list = L;
   reels[1].list = W;
   reels[2].list = W;
-
-  reels.forEach(r=>{ r.el.innerHTML = makeCellsHTML(r.list); });
+  // render strips
+  reels.forEach(r => {
+    r.el.innerHTML = makeCellsHTML(r.list);
+  });
 }
+
 function randomPick(list){
-  if (!list || !list.length) return {name:'',src:'',idx:0};
+  if (!list || !list.length) return { name:'', src:'', idx: 0 };
   const idx = Math.floor(Math.random()*list.length);
   const it = list[idx];
   return { name: it.name, src: it.src, idx };
 }
+
 function setLabels(){
   const n0 = chosen[0].name || cleanNameFromFile(chosen[0].src,'');
   const n1 = chosen[1].name || cleanNameFromFile(chosen[1].src,'');
@@ -437,65 +493,142 @@ function setLabels(){
   el.slotsLabel1.textContent = n1;
   el.slotsLabel2.textContent = n2;
 }
+
+// helper: set Y transform, track r.y
+function setY(r, y){
+  r.y = y;
+  r.el.style.transform = `translateY(${-y}px)`;
+}
+
+// At rest, show index 0 of the middle copy centered
+function resetReelToMiddle(r){
+  const n = r.list.length;
+  const middleStartIndex = n * Math.floor(COPIES/2); // start of middle copy
+  const showIndex = middleStartIndex;                // show index 0 of middle copy
+  const y = showIndex * CELL_H - CENTER_OFFSET;
+  setY(r, y);
+}
+
+
 function startSlotsSpin(){
   if (slotsSpinning) return;
   populateReels();
   if (!reels[0].list.length || !reels[1].list.length) return;
 
-  const dur = (state.slots && typeof state.slots.duration==='number') ? state.slots.duration : 2.5;
+  // read control params
+  const S = state.slots || {};
+  const durSec     = (typeof S.duration === 'number' && S.duration > 0) ? S.duration : 2.5;
+  const staggerSec = (typeof S.stagger  === 'number' && S.stagger  >= 0) ? S.stagger  : 0.5;
+  const invert     = !!S.invert;
 
+  // visuals flags
+  el.slotsWrap.classList.add('spinning');
+  el.slotsWrap.classList.toggle('invert', invert);
+
+  // pre-pick targets
   chosen[0] = randomPick(reels[0].list);
   chosen[1] = randomPick(reels[1].list);
-  chosen[2] = randomPick(reels[2].list); // allow dup; change if you want uniqueness
-
-  reels.forEach((r,i)=>{ r.t=0; r.targetIdx = chosen[i].idx; });
+  chosen[2] = randomPick(reels[2].list);
   setLabels();
+
+  // initialize reels to a clean middle position (so the math is stable)
+  reels.forEach(r=>{
+    r.started = false; r.done = false;
+    resetReelToMiddle(r);
+  });
+
+
+  // plan animation per reel
+    const easeOut = x => 1 - Math.pow(1-x, 3);
+    const t0 = performance.now();
+
+    reels.forEach((r, i) => {
+      r.targetIdx = (i===0? chosen[0].idx : i===1? chosen[1].idx : chosen[2].idx);
+
+      const n = r.list.length;
+      const middleStartIndex = n * Math.floor(COPIES/2);
+
+      // Direction: 'down' means visually symbols move downward (strip translate increases positively)
+      // We keep translateY(-y), so higher y => strip goes up; to move symbols DOWN, we DECREASE y.
+      // That means endIndex must be SMALLER than start index for 'down'.
+      const dirSign = (DIR === 'down') ? -1 : +1;
+
+      // keep LOOPS small enough to stay inside the rendered COPIES (10 is plenty)
+      // With COPIES=10 and center at 5n, LOOPS=3 keeps endIndex in-range for both directions.
+      const endIndex = middleStartIndex + dirSign * (LOOPS * n) + r.targetIdx;
+
+      r.startY   = r.y; // from reset
+      r.endY     = endIndex * CELL_H - CENTER_OFFSET;
+      r.startTime= t0 + i * ((state.slots?.stagger ?? 0.5) * 1000);
+      r.endTime  = r.startTime + (state.slots?.duration ?? 2.5) * 1000;
+      r.started  = false;
+      r.done     = false;
+  });
+
   slotsSpinning = true;
 
-  const t0 = performance.now();
-  const stops = [dur, dur+REEL_STOP_STAGGER, dur+REEL_STOP_STAGGER*2].map(s=>s*1000);
-  const easeOut = x => 1 - Math.pow(1-x, 3);
+  function step(now){
+    let allDone = true;
 
-  function step(t){
-    const elapsed = t - t0;
-    for (let i=0;i<3;i++){
-      const r = reels[i];
-      const stripLen = r.list.length * CELL_HEIGHT;
-      const k = Math.min(1, elapsed / stops[i]);
-      const eased = easeOut(k);
-      const baseLoop = (1 - eased) * 8 * stripLen; // lots of loops → zero
-      const targetOffset = r.targetIdx * CELL_HEIGHT;
-      const offset = (baseLoop + targetOffset) % (stripLen*3);
-      r.t = offset;
-      r.el.style.transform = `translateY(${-r.t}px)`;
+    for (const r of reels){
+      if (r.done) continue;
+
+      if (!r.started){
+        if (now >= r.startTime){
+          r.started = true;
+        } else {
+          allDone = false;
+          continue; // not started yet
+        }
+      }
+
+      const t = Math.min(1, (now - r.startTime) / (r.endTime - r.startTime));
+      const k = easeOut(t);
+      const y = r.startY + (r.endY - r.startY) * k;
+      setY(r, y);
+
+      if (t < 1){
+        allDone = false;
+      } else {
+        // snap exactly to end to avoid subpixel drift
+        setY(r, r.endY);
+        r.done = true;
+      }
     }
-    if (elapsed < stops[2]) {
+
+    if (!allDone){
       slotsRAF = requestAnimationFrame(step);
     } else {
-      // snap
-      reels.forEach(r=>{
-        const stripLen = r.list.length * CELL_HEIGHT;
-        const offset = (r.targetIdx * CELL_HEIGHT) % (stripLen*3);
-        r.t = offset;
-        r.el.style.transform = `translateY(${-r.t}px)`;
-      });
-      slotsSpinning = false; slotsRAF = null;
+      el.slotsWrap.classList.remove('spinning');
+      slotsSpinning = false;
+      slotsRAF = null;
     }
   }
+
   if (slotsRAF) cancelAnimationFrame(slotsRAF);
   slotsRAF = requestAnimationFrame(step);
 }
+
 function stopSlots(){
   if (!slotsSpinning) return;
-  if (slotsRAF){ cancelAnimationFrame(slotsRAF); slotsRAF=null; }
+  if (slotsRAF){ cancelAnimationFrame(slotsRAF); slotsRAF = null; }
+
+  // immediately clamp each reel to its computed endY
   reels.forEach(r=>{
-    const stripLen = r.list.length * CELL_HEIGHT;
-    const offset = (r.targetIdx * CELL_HEIGHT) % (stripLen*3);
-    r.t = offset;
-    r.el.style.transform = `translateY(${-r.t}px)`;
+    if (!r.started){
+      // if it hadn't started yet (due to stagger), just reset to middle for neatness
+      resetReelToMiddle(r);
+    } else {
+      setY(r, r.endY || r.y);
+    }
+    r.done = true;
   });
+
+  el.slotsWrap.classList.remove('spinning');
   slotsSpinning = false;
 }
+
+
 
 
 

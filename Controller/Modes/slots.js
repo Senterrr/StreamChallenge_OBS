@@ -1,5 +1,4 @@
 // controller/modes/slots.js
-// Apex Slots: Legend • Weapon • Weapon
 const MANIFEST_URL = '/slots-manifest';
 
 export function init(ctx){
@@ -12,14 +11,22 @@ export function init(ctx){
       <div class="title">Slots Mode (Apex)</div>
 
       <div class="card" style="margin-bottom:12px">
-        <div class="field">
+        <div class="field" style="flex-wrap:wrap; gap:10px">
           <label>Spin Duration (s)</label>
           <input id="sl-duration" class="input" type="number" step="0.1" min="0.5" max="10" value="2.5">
-          <button class="toolbtn" id="sl-rescan" style="margin-left:8px">Rescan Folders</button>
-          <button class="toolbtn" id="sl-spin" style="margin-left:auto">Spin</button>
+
+          <label>Reel Stagger (s)</label>
+          <input id="sl-stagger"  class="input" type="number" step="0.1" min="0" max="5" value="0.5">
+
+          <label style="display:inline-flex; align-items:center; gap:8px; margin-left:auto">
+            <input id="sl-invert" type="checkbox"> Invert images
+          </label>
+
+          <button class="toolbtn" id="sl-rescan">Rescan Folders</button>
+          <button class="toolbtn" id="sl-spin">Spin</button>
           <button class="toolbtn" id="sl-stop">Stop</button>
         </div>
-        <div class="hint">Reels stop with a short stagger. Duration controls when the first reel stops.</div>
+        <div class="hint">Reels stop with a short stagger; “Reel Stagger” sets the delay between Reel 1 → 2 → 3.</div>
       </div>
 
       <div class="card" style="margin-bottom:12px">
@@ -39,26 +46,30 @@ export function init(ctx){
   }
 
   function ensureSlotsState(){
-    if (!state.slots) state.slots = { duration: 2.5, legends: [], weapons: [] };
+    if (!state.slots) state.slots = { duration: 2.5, stagger: 0.5, invert: false, legends: [], weapons: [] };
     if (typeof state.slots.duration !== 'number') state.slots.duration = 2.5;
+    if (typeof state.slots.stagger  !== 'number') state.slots.stagger  = 0.5;
+    if (typeof state.slots.invert   !== 'boolean') state.slots.invert   = false;
     if (!Array.isArray(state.slots.legends)) state.slots.legends = [];
     if (!Array.isArray(state.slots.weapons)) state.slots.weapons = [];
   }
 
-  async function loadManifestIfEmpty(){
-    ensureSlotsState();
-    if (state.slots.legends.length && state.slots.weapons.length) return; // already loaded/remembered
+  async function fetchIntoState(){
     try{
       const r = await fetch(MANIFEST_URL, { cache:'no-store' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
-      // Only set if user hasn't got lists yet (don't wipe toggles)
-      if (!state.slots.legends.length) state.slots.legends = j.legends || [];
-      if (!state.slots.weapons.length) state.slots.weapons = j.weapons || [];
+      state.slots.legends = j.legends || [];
+      state.slots.weapons = j.weapons || [];
       persist(); sendState();
     }catch(e){
       console.warn('Slots manifest load failed', e);
     }
+  }
+  async function loadManifestIfEmpty(){
+    ensureSlotsState();
+    if (state.slots.legends.length && state.slots.weapons.length) return;
+    await fetchIntoState();
   }
 
   function fileNameToNice(src){
@@ -69,10 +80,11 @@ export function init(ctx){
 
   function renderGrid(container, list){
     container.innerHTML = list.map((it,idx)=>{
-      const nm = it.name || fileNameToNice(it.src);
+      const nm  = it.name || fileNameToNice(it.src);
       const off = it.enabled === false ? 'off' : '';
+      const src = it?.src?.startsWith('/') ? it.src : '/' + (it.src||'').replace(/^\/+/, '');
       return `<div class="it ${off}" data-idx="${idx}">
-        <img src="${it.src}" alt="${nm}"><div class="nm">${nm}</div>
+        <img src="${src}" alt="${nm}"><div class="nm">${nm}</div>
       </div>`;
     }).join('');
     container.querySelectorAll('.it').forEach(node=>{
@@ -85,12 +97,24 @@ export function init(ctx){
     });
   }
 
+  async function rescanAndRender(slLegends, slWeapons){
+    state.slots.legends = [];
+    state.slots.weapons = [];
+    persist();
+    await fetchIntoState();
+    renderGrid(slLegends, state.slots.legends);
+    renderGrid(slWeapons, state.slots.weapons);
+    sendState();
+  }
+
   function wire(){
     if (wired) return; wired = true;
     panel.innerHTML = html();
 
     const $ = (id)=>panel.querySelector(id);
     const slDuration = $('#sl-duration');
+    const slStagger  = $('#sl-stagger');
+    const slInvert   = $('#sl-invert');
     const slRescan   = $('#sl-rescan');
     const slSpin     = $('#sl-spin');
     const slStop     = $('#sl-stop');
@@ -99,22 +123,28 @@ export function init(ctx){
 
     ensureSlotsState();
     slDuration.value = state.slots.duration;
+    slStagger.value  = state.slots.stagger;
+    slInvert.checked = !!state.slots.invert;
 
     // events
     slDuration.addEventListener('change', ()=>{
       const v = parseFloat(slDuration.value);
-      state.slots.duration = Number.isFinite(v) ? Math.max(0.5, Math.min(10, v)) : 2.5;
+      state.slots.duration = Number.isFinite(v) ? Math.max(0.3, Math.min(15, v)) : 2.5;
       slDuration.value = state.slots.duration;
       persist(); sendState();
     });
-    slRescan.addEventListener('click', async ()=>{
-      // clear then load fresh
-      state.slots.legends = []; state.slots.weapons = [];
-      persist(); await loadManifestIfEmpty(); // repopulate
-      renderGrid(slLegends, state.slots.legends);
-      renderGrid(slWeapons, state.slots.weapons);
-      sendState();
+    slStagger.addEventListener('change', ()=>{
+      const v = parseFloat(slStagger.value);
+      state.slots.stagger = Number.isFinite(v) ? Math.max(0, Math.min(5, v)) : 0.5;
+      slStagger.value = state.slots.stagger;
+      persist(); sendState();
     });
+    slInvert.addEventListener('change', ()=>{
+      state.slots.invert = !!slInvert.checked;
+      persist(); sendState();
+    });
+
+    slRescan.addEventListener('click', ()=> rescanAndRender(slLegends, slWeapons));
     slSpin.addEventListener('click', ()=> sendCmd('slotSpin'));
     slStop.addEventListener('click', ()=> sendCmd('slotStop'));
 
@@ -124,12 +154,17 @@ export function init(ctx){
       renderGrid(slLegends, state.slots.legends);
       renderGrid(slWeapons, state.slots.weapons);
     })();
+
+    // store for auto-rescan on tab show
+    panel._slotsRescan = () => rescanAndRender(slLegends, slWeapons);
   }
 
   return {
     show(){
       if (state.mode !== 'slots') setMode('slots');
       wire();
+      // auto-rescan whenever Slots tab is selected
+      if (typeof panel._slotsRescan === 'function') panel._slotsRescan();
     }
   };
 }

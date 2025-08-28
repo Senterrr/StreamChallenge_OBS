@@ -24,20 +24,25 @@ function bucketFor(channel) {
 }
 
 // Static roots
-const ROOT = path.resolve(__dirname, '..');     // repo root
-const ASSETS = path.join(ROOT, 'Assets');
-const CHAR_DIR = path.join(ASSETS, 'characters');
-const WEAP_DIR = path.join(ASSETS, 'weapons');
+const ROOT        = path.resolve(__dirname, '..'); // repo root
+const ASSETS      = path.join(ROOT, 'Assets');
+const APEXLEGENDS = path.join(ASSETS, 'ApexLegends');
+const CHAR_DIR    = path.join(APEXLEGENDS, 'characters');
+const WEAP_DIR    = path.join(APEXLEGENDS, 'weapons');
 
-const IMG_EXTS = new Set(['.png','.svg','.jpg','.jpeg','.webp','.gif']);
+const IMG_EXTS = new Set(['.png', '.svg', '.jpg', '.jpeg', '.webp', '.gif']);
 
 function fileNameToNice(fileBase) {
   let name = fileBase.replace(/\.[^.]+$/, '');
   name = name.replace(/[_-]?(mobile|icon)(?:[_-]|$)/gi, ' ');
   name = name.replace(/[_-]+/g, ' ');
   name = name.replace(/\s+/g, ' ').trim();
-  return name.split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
+  return name
+    .split(' ')
+    .map(w => (w ? w[0].toUpperCase() + w.slice(1) : ''))
+    .join(' ');
 }
+
 function listDir(dirAbs, webRelPrefix) {
   try {
     const files = fs.readdirSync(dirAbs, { withFileTypes: true });
@@ -45,7 +50,8 @@ function listDir(dirAbs, webRelPrefix) {
       .filter(d => d.isFile() && IMG_EXTS.has(path.extname(d.name).toLowerCase()))
       .map(d => ({
         name: fileNameToNice(d.name),
-        src: path.posix.join(webRelPrefix, d.name),
+        // Root-relative so it works from /controller/* and /overlay.html
+        src: '/' + path.posix.join(webRelPrefix, d.name).replace(/^\/+/, ''),
         enabled: true,
       }));
   } catch {
@@ -53,6 +59,7 @@ function listDir(dirAbs, webRelPrefix) {
   }
 }
 
+// ---------- HTTP server ----------
 const server = http.createServer((req, res) => {
   // CORS (so controller/overlay from OBS/file:// can hit this)
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -60,12 +67,13 @@ const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
-  // ----- Slots manifest
+  // ----- Slots manifest (NOW inside the handler)
   if (req.url === '/slots-manifest') {
-    const legends = listDir(CHAR_DIR, 'Assets/characters');
-    const weapons = listDir(WEAP_DIR, 'Assets/weapons');
+    const legends = listDir(CHAR_DIR, 'Assets/ApexLegends/characters');
+    const weapons = listDir(WEAP_DIR, 'Assets/ApexLegends/weapons');
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    return res.end(JSON.stringify({ legends, weapons }));
+    res.end(JSON.stringify({ legends, weapons }));
+    return;
   }
 
   // ----- Static serving
@@ -77,15 +85,13 @@ const server = http.createServer((req, res) => {
 
   let filePath = path.join(ROOT, safePath || 'index.html');
 
-  // If path is a directory, try common entry files (your change prefers controller.html)
+  // If path is a directory, try common entry files (prefer controller.html for /controller/)
   if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
     const candidates = ['controller.html', 'index.html'];
-    let picked = null;
     for (const cand of candidates) {
       const p = path.join(filePath, cand);
-      if (fs.existsSync(p) && fs.statSync(p).isFile()) { picked = p; break; }
+      if (fs.existsSync(p) && fs.statSync(p).isFile()) { filePath = p; break; }
     }
-    if (picked) filePath = picked;
   }
 
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -102,14 +108,15 @@ const server = http.createServer((req, res) => {
       'application/octet-stream';
 
     res.writeHead(200, { 'Content-Type': mime });
-    return fs.createReadStream(filePath).pipe(res);
+    fs.createReadStream(filePath).pipe(res);
+    return;
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify({ error: 'not found' }));
 });
 
-// WebSocket relay on same server
+// ---------- WebSocket relay ----------
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws) => {
