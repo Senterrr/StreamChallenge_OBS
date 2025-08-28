@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Challenge Controller — Tabs</title>
+    <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="left">
+            <div class="appHeader">
+                <div class="title">Controller</div>
+                <button id="themeToggle" class="toolbtn">Toggle Light/Dark</button>
+            </div>
+
+
+            <!-- Tabs -->
+            <div class="tabs" role="tablist">
+                <button class="tabBtn" data-tab="list" id="tab-list" role="tab" aria-selected="true">List</button>
+                <button class="tabBtn" data-tab="wheel" id="tab-wheel" role="tab">Wheel</button>
+                <button class="tabBtn" data-tab="slots" id="tab-slots" role="tab">Slots</button>
+                <button class="tabBtn" data-tab="settings" id="tab-settings" role="tab">Settings</button>
+            </div>
+
+
+            <!-- Panels (one per tab) -->
+            <section id="panel-list" class="tabPanel" role="tabpanel" aria-labelledby="tab-list"></section>
+            <section id="panel-wheel" class="tabPanel" role="tabpanel" aria-labelledby="tab-wheel" hidden></section>
+            <section id="panel-slots" class="tabPanel" role="tabpanel" aria-labelledby="tab-slots" hidden></section>
+            <section id="panel-settings" class="tabPanel" role="tabpanel" aria-labelledby="tab-settings" hidden>
+                <!-- Settings content lives here (injected by main.js) -->
+                <div class="card" style="margin-bottom:12px">
+                    <div class="field"><label>WS URL</label><input id="wsUrl" class="input"
+                            value="ws://127.0.0.1:17311" /></div>
+                    <div class="field"><label>Channel</label><input id="channel" class="input"
+                            value="obs_challenge_overlay" /></div>
+                    <div class="field"><label>Connected</label><span id="status" class="status">…</span></div>
+                    <div class="hint">Overlay must use the same channel & WS URL.</div>
+                </div>
+
+
+                <div class="card" id="keybindsCard" style="margin-top:12px">
+                    <h3>Keybinds</h3>
+                    <div class="panel" style="gap:12px;flex-wrap:wrap">
+                        <label>Next/Spin <input id="kb-next" class="input" placeholder="Enter/Space" /></label>
+                        <label>Prev <input id="kb-prev" class="input" placeholder="Backspace/Left" /></label>
+                        <label>Toggle Done <input id="kb-toggle" class="input" placeholder="D" /></label>
+                        <label>Reset <input id="kb-reset" class="input" placeholder="R" /></label>
+                    </div>
+                    <div class="hint">Click a box, press a key. Saved automatically.</div>
+                </div>
+            </section>
+        </div>
+
+
+        <div class="divider" id="divider" role="separator" aria-orientation="vertical" aria-label="Resize panels"></div>
+
+
+        <div class="right">
+            <div class="title">Preview</div>
+            <div class="card previewCard" id="previewCard">
+                <div class="previewHead">
+                    <div id="previewTitle" class="title"></div>
+                </div>
+                <div class="previewBody">
+                    <div class="previewEmbed" id="previewEmbed">
+                        <div class="previewStage" id="previewStage">
+                            <iframe id="overlayPreview" width="1280" height="720" src="" loading="lazy"
+                                referrerpolicy="no-referrer"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module" src="./main.js"></script>
+</body>
+
+</html>

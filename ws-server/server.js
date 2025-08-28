@@ -1,103 +1,150 @@
-// ws-server/server.js
+// ESM server: HTTP (static + /slots-manifest) + WebSocket relay
+// Requires: "type": "module" in ws-server/package.json
+
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
-import url from 'url';
 
-const PORT = 17311;
-const clientsByChannel = new Map(); // channel => Set<WebSocket>
+// Paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-function broadcastAction(channel, msgObj) {
-  const set = clientsByChannel.get(channel);
-  if (!set) return;
-  const payload = JSON.stringify(msgObj);
-  for (const ws of set) {
-    if (ws.readyState === ws.OPEN) ws.send(payload);
+const HOST = process.env.HOST || '127.0.0.1';
+const PORT = Number(process.env.PORT || 17311);
+
+// In-memory channel map: channel -> { overlays:Set, panels:Set }
+const channels = new Map();
+function bucketFor(channel) {
+  if (!channels.has(channel)) {
+    channels.set(channel, { overlays: new Set(), panels: new Set() });
+  }
+  return channels.get(channel);
+}
+
+// Static roots
+const ROOT = path.resolve(__dirname, '..');     // repo root
+const ASSETS = path.join(ROOT, 'Assets');
+const CHAR_DIR = path.join(ASSETS, 'characters');
+const WEAP_DIR = path.join(ASSETS, 'weapons');
+
+const IMG_EXTS = new Set(['.png','.svg','.jpg','.jpeg','.webp','.gif']);
+
+function fileNameToNice(fileBase) {
+  let name = fileBase.replace(/\.[^.]+$/, '');
+  name = name.replace(/[_-]?(mobile|icon)(?:[_-]|$)/gi, ' ');
+  name = name.replace(/[_-]+/g, ' ');
+  name = name.replace(/\s+/g, ' ').trim();
+  return name.split(' ').map(w => w ? w[0].toUpperCase() + w.slice(1) : '').join(' ');
+}
+function listDir(dirAbs, webRelPrefix) {
+  try {
+    const files = fs.readdirSync(dirAbs, { withFileTypes: true });
+    return files
+      .filter(d => d.isFile() && IMG_EXTS.has(path.extname(d.name).toLowerCase()))
+      .map(d => ({
+        name: fileNameToNice(d.name),
+        src: path.posix.join(webRelPrefix, d.name),
+        enabled: true,
+      }));
+  } catch {
+    return [];
   }
 }
 
-// 1) Single HTTP+WS server (so firewall allows one thing)
-const server = http.createServer(async (req, res) => {
-  const { pathname, query } = url.parse(req.url, true);
+const server = http.createServer((req, res) => {
+  // CORS (so controller/overlay from OBS/file:// can hit this)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
-  // Health check
-  if (pathname === '/health') {
-    res.writeHead(200, { 'content-type': 'text/plain' });
-    return res.end('ok');
+  // ----- Slots manifest
+  if (req.url === '/slots-manifest') {
+    const legends = listDir(CHAR_DIR, 'Assets/characters');
+    const weapons = listDir(WEAP_DIR, 'Assets/weapons');
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    return res.end(JSON.stringify({ legends, weapons }));
   }
 
-  // Simple GET trigger (easy for Stream Deck “Open URL” or curl)
-  // Example: http://127.0.0.1:17311/trigger?channel=obs_challenge_overlay&action=next
-  if (pathname === '/trigger' && req.method === 'GET') {
-    const channel = query.channel || 'obs_challenge_overlay';
-    const action  = (query.action || '').toLowerCase();
-    const value   = query.value; // optional (e.g., jump index)
-    if (!action) {
-      res.writeHead(400); return res.end('missing action');
+  // ----- Static serving
+  const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  const safePath = path
+    .normalize(urlPath)
+    .replace(/^(\.\.[/\\])+/g, '') // strip leading ../
+    .replace(/^\/+/, '');          // strip leading slash
+
+  let filePath = path.join(ROOT, safePath || 'index.html');
+
+  // If path is a directory, try common entry files (your change prefers controller.html)
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+    const candidates = ['controller.html', 'index.html'];
+    let picked = null;
+    for (const cand of candidates) {
+      const p = path.join(filePath, cand);
+      if (fs.existsSync(p) && fs.statSync(p).isFile()) { picked = p; break; }
     }
-    broadcastAction(channel, { type: 'remoteAction', action, value });
-    res.writeHead(204); return res.end();
+    if (picked) filePath = picked;
   }
 
-  // JSON POST trigger: {channel, action, value}
-  if (pathname === '/trigger' && req.method === 'POST') {
-    let body = '';
-    req.on('data', c => (body += c));
-    req.on('end', () => {
-      try {
-        const { channel = 'obs_challenge_overlay', action, value } = JSON.parse(body || '{}');
-        if (!action) { res.writeHead(400); return res.end('missing action'); }
-        broadcastAction(channel, { type: 'remoteAction', action: String(action).toLowerCase(), value });
-        res.writeHead(204); res.end();
-      } catch {
-        res.writeHead(400); res.end('bad json');
-      }
-    });
-    return;
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    const ext = path.extname(filePath).toLowerCase();
+    const mime =
+      ext === '.html' ? 'text/html; charset=utf-8' :
+      ext === '.css'  ? 'text/css; charset=utf-8' :
+      ext === '.js'   ? 'application/javascript; charset=utf-8' :
+      ext === '.svg'  ? 'image/svg+xml' :
+      ext === '.png'  ? 'image/png' :
+      ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' :
+      ext === '.webp' ? 'image/webp' :
+      ext === '.gif'  ? 'image/gif' :
+      'application/octet-stream';
+
+    res.writeHead(200, { 'Content-Type': mime });
+    return fs.createReadStream(filePath).pipe(res);
   }
 
-  // Fallback
-  res.writeHead(404); res.end('not found');
+  res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify({ error: 'not found' }));
 });
 
-// 2) WebSocket relay
+// WebSocket relay on same server
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws) => {
-  let channel = null; // assigned after first message
+  let role = null, channel = null;
 
   ws.on('message', (buf) => {
-    let msg = null;
-    try { msg = JSON.parse(buf.toString()); } catch { return; }
+    let msg; try { msg = JSON.parse(String(buf)); } catch { return; }
 
-    // Accept legacy 'register' or newer 'hello'
-    if ((msg.type === 'register' || msg.type === 'hello') && msg.channel) {
-      channel = msg.channel;
-      if (!clientsByChannel.has(channel)) clientsByChannel.set(channel, new Set());
-      clientsByChannel.get(channel).add(ws);
-      ws.send(JSON.stringify({ type: 'hello-ack', channel }));
+    if (msg.type === 'register') {
+      role = String(msg.role || '');
+      channel = String(msg.channel || 'obs_challenge_overlay');
+      const b = bucketFor(channel);
+      (role === 'overlay' ? b.overlays : b.panels).add(ws);
+      ws.on('close', () => { const bb = bucketFor(channel); bb.overlays.delete(ws); bb.panels.delete(ws); });
       return;
     }
 
-    // Forward important channel messages
-    if (channel && (
-        msg.type === 'state' ||
-        msg.type === 'cmd' ||
-        msg.type === 'request-state' ||
-        msg.type === 'remoteAction'
-      )) {
-      broadcastAction(channel, msg);
+    if (msg.type === 'state' && channel) {
+      const b = bucketFor(channel);
+      const payload = JSON.stringify({ type:'state', channel, payload: msg.payload });
+      b.overlays.forEach(sock => { if (sock.readyState === 1) sock.send(payload); });
+      return;
     }
-  });
 
-  ws.on('close', () => {
-    if (channel && clientsByChannel.has(channel)) {
-      clientsByChannel.get(channel).delete(ws);
-      if (clientsByChannel.get(channel).size === 0) clientsByChannel.delete(channel);
+    if (msg.type === 'cmd' && channel) {
+      const b = bucketFor(channel);
+      const payload = JSON.stringify({ type:'cmd', channel, cmd: msg.cmd, payload: msg.payload });
+      b.overlays.forEach(sock => { if (sock.readyState === 1) sock.send(payload); });
+      return;
     }
+    // msg.type === 'request-state' → no-op; panels push state proactively
   });
 });
 
-
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[relay] listening on http/ws://127.0.0.1:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`WS+HTTP listening at http://${HOST}:${PORT}`);
+  console.log(`Slots manifest: http://${HOST}:${PORT}/slots-manifest`);
 });

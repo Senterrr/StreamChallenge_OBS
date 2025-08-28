@@ -6,198 +6,76 @@
 <title>Challenge Overlay — Viewer</title>
 <style>
   :root{
-    /* Core */
     --scale: 1;
     --frame: #ffffff66;
     --inset-top: 36px; --inset-right: 48px; --inset-bottom: 36px; --inset-left: 48px;
     --pill: rgba(0,0,0,0.45); --pill-b: #ffffff24; --text: #fff; --muted: #ffffffa6;
     --shadow: 0 12px 30px rgba(0,0,0,.45);
-
-    /* Alignment (left|center|right) expressed as flex values */
-    --align: center;
-    --origin: center;
-    --title-text: center;
-
-    /* Title ↔ content gap (list vs wheel) */
-    --wrap-gap-list: 28px;
-    --wrap-gap-wheel: 12px;
-
-    /* List spacing */
-    --list-gap: 0px;
-    --pill-pad-y: 8px;
-    --pill-pad-x: 14px;
-
-    /* Extra breathing room around current item */
-    --current-extra-gap: 8px;
-
-    /* Optional “tighter than zero” pull */
-    --pull: 0px;
-
-    /* Accents for title + selected */
-    --accent1: #7c3aed;
-    --accent2: #22d3ee;
+    --align: center; --origin: center; --title-text: center;
+    --wrap-gap-list: 28px; --wrap-gap-wheel: 12px;
+    --list-gap: 0px; --pill-pad-y: 8px; --pill-pad-x: 14px;
+    --current-extra-gap: 8px; --pull: 0px;
+    --accent1: #7c3aed; --accent2: #22d3ee;
     --accent1-soft: rgba(124,58,237,.36);
     --accent2-soft: rgba(34,211,238,.36);
     --accent-ring: rgba(124,58,237,.35);
-
-    /* Computed in JS for wheel title size */
     --titleWheelSize: 64px;
   }
-
   html,body{height:100%}
-  body{
-    margin:0;
-    background:transparent !important;
-    color:var(--text);
-    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;
-    overflow:hidden;
-  }
-
-  .viewport{
-    position:absolute;
-    inset:var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
-    pointer-events:none
-  }
-  .frame{
-    position:absolute;
-    inset:var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
-    border:2px dashed var(--frame);
-    border-radius:14px;
-    pointer-events:none;
-    display:none
-  }
-
-  .root{
-    position:absolute; inset:0;
-    display:flex; align-items:center; justify-content:center;
-    transform:scale(var(--scale)); transform-origin:center;
-  }
-
-  /* Title + content wrapper */
-  .wrap{
-    display:flex; align-items:center; justify-content: var(--align);
-    gap: var(--wrap-gap-list);
-    width:100%;
-  }
-  body.is-wheel .wrap{ gap: var(--wrap-gap-wheel); }
-  .wrap.stack{
-    flex-direction:column;
-    align-items: var(--align);
-    justify-content:flex-start;
-  }
-
-  /* Title */
-  .title{
-    padding:12px 18px;
-    font-weight:900;
-    font-size:22px; /* list-mode default */
-    border-radius:12px;
-    background: linear-gradient(135deg, var(--accent1-soft), var(--accent2-soft));
-    border:1px solid #ffffff24;
-    text-shadow:0 2px 8px #00000099;
-    text-align: var(--title-text);
-  }
-  body.is-wheel .title{ font-size: var(--titleWheelSize); }
-
-  /* List bars */
-  .bar{
-    display:flex; align-items:center; gap:var(--list-gap);
-    justify-content: var(--align);
-    transition: opacity .4s ease, transform .4s ease;
-  }
-  .bar.vertical{
-    flex-direction:column;
-    align-items: var(--align);
-  }
-
-  /* Optional “pull” for tighter-than-zero spacing */
-  .bar:not(.vertical) .pill{ margin-left: calc(-1 * var(--pull)); }
-  .bar:not(.vertical) .pill:first-child{ margin-left: 0; }
-  .bar.vertical .pill{ margin-top: calc(-1 * var(--pull)); }
-  .bar.vertical .pill:first-child{ margin-top: 0; }
-
-  /* Pills */
-  .pill{
-    position:relative; display:flex; align-items:center; gap:10px;
-    padding:var(--pill-pad-y) var(--pill-pad-x);
-    border-radius:999px;
-    background:var(--pill); border:1px solid var(--pill-b);
-    box-shadow:var(--shadow); user-select:none;
-    transform-origin: var(--origin) center;
-  }
-  .pill .check{
-    width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;
-    border-radius:50%;border:1px solid #ffffff80;margin-right:2px;
-    font-weight:900;font-size:12px;opacity:0;transition:opacity .15s ease
-  }
+  body{margin:0;background:transparent !important;color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;overflow:hidden}
+  .viewport{position:absolute;inset:var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);pointer-events:none}
+  .frame{position:absolute;inset:var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);border:2px dashed var(--frame);border-radius:14px;pointer-events:none;display:none}
+  .root{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:scale(var(--scale));transform-origin:center}
+  .wrap{display:flex;align-items:center;justify-content:var(--align);gap:var(--wrap-gap-list);width:100%}
+  body.is-wheel .wrap{gap:var(--wrap-gap-wheel)}
+  .wrap.stack{flex-direction:column;align-items:var(--align);justify-content:flex-start}
+  .title{padding:12px 18px;font-weight:900;font-size:22px;border-radius:12px;background:linear-gradient(135deg,var(--accent1-soft),var(--accent2-soft));border:1px solid #ffffff24;text-shadow:0 2px 8px #00000099;text-align:var(--title-text)}
+  body.is-wheel .title{font-size:var(--titleWheelSize)}
+  .bar{display:flex;align-items:center;gap:var(--list-gap);justify-content:var(--align);transition:opacity .4s ease,transform .4s ease}
+  .bar.vertical{flex-direction:column;align-items:var(--align)}
+  .bar:not(.vertical) .pill{margin-left:calc(-1*var(--pull))}.bar:not(.vertical) .pill:first-child{margin-left:0}
+  .bar.vertical .pill{margin-top:calc(-1*var(--pull))}.bar.vertical .pill:first-child{margin-top:0}
+  .pill{position:relative;display:flex;align-items:center;gap:10px;padding:var(--pill-pad-y) var(--pill-pad-x);border-radius:999px;background:var(--pill);border:1px solid var(--pill-b);box-shadow:var(--shadow);user-select:none;transform-origin:var(--origin) center}
+  .pill .check{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid #ffffff80;margin-right:2px;font-weight:900;font-size:12px;opacity:0;transition:opacity .15s ease}
   .pill .idx{font-weight:900;font-size:24px;opacity:.9;background:#ffffff1f;padding:2px 6px;border-radius:999px}
   .pill .label{font-weight:800;font-size:36px;text-shadow:0 2px 8px #0009}
-
-  /* Selected */
-  .pill.current{
-    background: linear-gradient(135deg, var(--accent1), var(--accent2));
-    border-color: transparent;
-    color:#fff;
-    box-shadow:
-      0 0 0 2px rgba(255,255,255,.18),
-      0 0 18px 6px var(--accent-ring),
-      var(--shadow);
-    transform: translateZ(0) scale(1.04);
-    opacity:1;
-  }
-
-  /* Only done items show the checkmark */
-  .pill.done .check{
-    opacity: 1 !important;
-    border-color: rgba(255,255,255,.85);
-  }
-  .pill.current:not(.done) .check{ opacity: 0 !important; }
-  .pill.done.current{ opacity: 1 !important; filter:none !important; }
-
-  /* Darker/transparent for non-current list items */
-  .bar .pill:not(.current){
-    background:#0e0e102e;
-    border-color:#00000039;
-    opacity:.1;
-  }
-
-  /* Progressive look */
-  body.progressive .pill{ transform:scale(.72); opacity:.85; }
-  body.progressive .pill.current{ transform:translateY(-1px) scale(1.18); opacity:1; }
-  body.progressive .pill.done{ opacity:.35; }
-
-  /* Current spacing bump */
-  .bar .pill.current{ margin-inline: var(--current-extra-gap); }
-  .bar.vertical .pill.current{ margin-inline:0; margin-block: var(--current-extra-gap); }
-
-  /* Wheel */
+  .pill.current{background:linear-gradient(135deg,var(--accent1),var(--accent2));border-color:transparent;color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.18),0 0 18px 6px var(--accent-ring),var(--shadow);transform:translateZ(0) scale(1.04);opacity:1}
+  .pill.done .check{opacity:1 !important;border-color:rgba(255,255,255,.85)}
+  .pill.current:not(.done) .check{opacity:0 !important}
+  .pill.done.current{opacity:1 !important;filter:none !important}
+  .bar .pill:not(.current){background:#0e0e102e;border-color:#00000039;opacity:.1}
+  body.progressive .pill{transform:scale(.72);opacity:.85}
+  body.progressive .pill.current{transform:translateY(-1px) scale(1.18);opacity:1}
+  body.progressive .pill.done{opacity:.35}
+  .bar .pill.current{margin-inline:var(--current-extra-gap)}
+  .bar.vertical .pill.current{margin-inline:0;margin-block:var(--current-extra-gap)}
   .wheelWrap{display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px}
   .wheelReadout{font-weight:900}
-  .wheelWrap canvas, .wheelWrap svg{ opacity:1 !important; mix-blend-mode:normal !important; }
+  .wheelWrap canvas,.wheelWrap svg{opacity:1 !important;mix-blend-mode:normal !important}
+  .overlay-root,.app,.wheelWrap,.bar,.pill{opacity:1 !important;filter:none !important;mix-blend-mode:normal !important}
+  body.completed .title{position:relative;padding-right:56px;transform:scale(1.06);transition:transform .35s ease,filter .35s ease;filter:drop-shadow(0 8px 30px rgba(0,0,0,.45))}
+  body.completed .title::after{content:'✓';position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;font-weight:900;box-shadow:0 0 0 2px rgba(255,255,255,.18),0 0 18px 6px var(--accent-ring)}
+  body.completed .bar{opacity:0;transform:translateY(6px);pointer-events:none}
 
-  /* Safety: remove accidental blending */
-  .overlay-root, .app, .wheelWrap, .bar, .pill{
-    opacity:1 !important; filter:none !important; mix-blend-mode:normal !important;
-  }
+  /* Slots mode */
+.slotsWrap{ display:none; align-items:center; justify-content:center; flex-direction:column; gap:16px; width:100% }
+.slotsReels{ display:flex; gap:18px }
+.reel{
+  width:200px; height:220px; overflow:hidden;
+  border-radius:14px; border:1px solid #ffffff22; background:rgba(0,0,0,.35);
+  box-shadow: var(--shadow); position:relative;
+}
+.strip{ position:absolute; left:0; top:0; width:100%; will-change: transform }
+.strip .cell{
+  display:flex; align-items:center; justify-content:center; flex-direction:column;
+  width:100%; height:110px; padding:10px 6px; text-align:center;
+}
+.strip .cell img{ width:80px; height:80px; object-fit:contain; image-rendering:auto;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,.5)); }
+.slotsLabels{ display:flex; gap:18px; font-weight:900 }
+.slotsLabels .label{ width:200px; text-align:center; font-size:18px; text-shadow:0 2px 8px #0009 }
 
-  /* Completion visuals */
-  body.completed .title{
-    position: relative;
-    padding-right: 56px;
-    transform: scale(1.06);
-    transition: transform .35s ease, filter .35s ease;
-    filter: drop-shadow(0 8px 30px rgba(0,0,0,.45));
-  }
-  body.completed .title::after{
-    content:'✓';
-    position:absolute; right:-6px; top:50%; transform:translateY(-50%);
-    width:42px; height:42px; border-radius:999px;
-    display:flex; align-items:center; justify-content:center;
-    background: linear-gradient(135deg, var(--accent1), var(--accent2));
-    color:#fff; font-weight:900;
-    box-shadow: 0 0 0 2px rgba(255,255,255,.18), 0 0 18px 6px var(--accent-ring);
-  }
-  body.completed .bar{ opacity:0; transform: translateY(6px); pointer-events:none; }
+
 </style>
 </head>
 <body>
@@ -211,60 +89,54 @@
           <canvas id="wheelCanvas" width="640" height="640"></canvas>
           <div class="wheelReadout" id="wheelResult"></div>
         </div>
+        <div id="slotsWrap" class="slotsWrap">
+          <div class="slotsReels">
+            <div class="reel"><div class="strip" id="reel0"></div></div>
+            <div class="reel"><div class="strip" id="reel1"></div></div>
+            <div class="reel"><div class="strip" id="reel2"></div></div>
+          </div>
+          <div class="slotsLabels">
+            <div class="label" id="slotsLabel0"></div>
+            <div class="label" id="slotsLabel1"></div>
+            <div class="label" id="slotsLabel2"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
 <script>
 (() => {
-  // ====== Constants / helpers =================================================
   const BASE_COLORS = ['#7c3aedcc','#22d3eecc','#10b981cc'];
-  const DEFAULTS = {
-    channel: 'obs_challenge_overlay',
-    ws: 'ws://127.0.0.1:17311',
-    frame: false,
-    mute: false
-  };
-  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-
+  const DEFAULTS = { channel:'obs_challenge_overlay', ws:'ws://127.0.0.1:17311', frame:false, mute:false };
+  const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
   const qs = new URLSearchParams(location.search);
-  const getStr = (k, d='') => qs.has(k) ? String(qs.get(k)) : d;
-  const getBool = (k, d=false) => qs.has(k) ? /^(1|true)$/i.test(qs.get(k)) : d;
+  const getStr = (k,d='') => qs.has(k)? String(qs.get(k)) : d;
+  const getBool= (k,d=false)=> qs.has(k)? /^(1|true)$/i.test(qs.get(k)) : d;
 
-  // ====== Config from query ===================================================
   const channel = getStr('channel', DEFAULTS.channel);
   const wsUrl   = getStr('ws', DEFAULTS.ws);
   const showFrame = getBool('frame', DEFAULTS.frame);
   const mute = getBool('mute', DEFAULTS.mute);
 
-  // Insets override (query ?insets=t,r,b,l)
   if (qs.has('insets')) {
     const p = qs.get('insets').split(',').map(s=>s.trim());
     if (p.length === 4) {
-      const root = document.documentElement.style;
-      root.setProperty('--inset-top',    p[0].endsWith('px')?p[0]:p[0]+'px');
-      root.setProperty('--inset-right',  p[1].endsWith('px')?p[1]:p[1]+'px');
-      root.setProperty('--inset-bottom', p[2].endsWith('px')?p[2]:p[2]+'px');
-      root.setProperty('--inset-left',   p[3].endsWith('px')?p[3]:p[3]+'px');
+      const r = document.documentElement.style;
+      r.setProperty('--inset-top',    p[0].endsWith('px')?p[0]:p[0]+'px');
+      r.setProperty('--inset-right',  p[1].endsWith('px')?p[1]:p[1]+'px');
+      r.setProperty('--inset-bottom', p[2].endsWith('px')?p[2]:p[2]+'px');
+      r.setProperty('--inset-left',   p[3].endsWith('px')?p[3]:p[3]+'px');
     }
   }
-  if (showFrame) document.getElementById('frame').style.display = 'block';
+  if (showFrame) document.getElementById('frame').style.display='block';
 
-  // ====== State (synced with controller) =====================================
   const state = {
-    title: '',
-    items: [],
-    mode: 'list',              // 'list' | 'wheel'
-    progressive: false,
-    orientation: 'horizontal', // 'horizontal' | 'vertical'
-    align: 'center',           // 'left' | 'center' | 'right'
-    scale: 1,
-    insets: '36,48,36,48',
-    current: 0,
-    done: []
+    title:'', items:[], mode:'list', progressive:false,
+    orientation:'horizontal', align:'center', scale:1, insets:'36,48,36,48',
+    current:0, done:[]
   };
 
-  // ====== DOM cache ===========================================================
   const el = {
     wrap: document.getElementById('wrap'),
     title: document.getElementById('title'),
@@ -272,12 +144,18 @@
     wheelWrap: document.getElementById('wheelWrap'),
     wheelCanvas: document.getElementById('wheelCanvas'),
     wheelResult: document.getElementById('wheelResult'),
+    slotsWrap: document.getElementById('slotsWrap'),
+    reel0: document.getElementById('reel0'),
+    reel1: document.getElementById('reel1'),
+    reel2: document.getElementById('reel2'),
+    slotsLabel0: document.getElementById('slotsLabel0'),
+    slotsLabel1: document.getElementById('slotsLabel1'),
+    slotsLabel2: document.getElementById('slotsLabel2'),
   };
 
-  // ====== CSS variable setters ===============================================
-  const css = (k,v) => document.documentElement.style.setProperty(k, v);
+  const css = (k,v)=>document.documentElement.style.setProperty(k,v);
 
-  function applyInsetsFromState() {
+  function applyInsetsFromState(){
     if (!state.insets) return;
     const p = String(state.insets).split(',').map(s=>s.trim());
     if (p.length !== 4) return;
@@ -286,7 +164,6 @@
     css('--inset-bottom', p[2].endsWith('px')?p[2]:p[2]+'px');
     css('--inset-left',   p[3].endsWith('px')?p[3]:p[3]+'px');
   }
-
   function applyScale(){ css('--scale', state.scale); }
   function applyOrientation(){
     const v = (state.orientation === 'vertical');
@@ -294,477 +171,374 @@
     el.bar.classList.toggle('vertical', v);
   }
   function applyProgressive(){ document.body.classList.toggle('progressive', !!state.progressive); }
-
   function applyAlignment(){
     let align='center', origin='center', text='center';
     if (state.align === 'left')  { align='flex-start'; origin='left';  text='left'; }
     if (state.align === 'right') { align='flex-end';   origin='right'; text='right'; }
-    css('--align', align);
-    css('--origin', origin);
-    css('--title-text', text);
+    css('--align', align); css('--origin', origin); css('--title-text', text);
   }
 
-  // ====== Hi-DPI canvas sizing ===============================================
-  function sizeCanvasToDisplay(canvas, cssSize) {
+  function sizeCanvasToDisplay(canvas, cssSize){
     const dpr = Math.max(1, window.devicePixelRatio || 1);
-    const side = cssSize; // css pixels
-    canvas.style.width = side + 'px';
-    canvas.style.height = side + 'px';
-    canvas.width  = Math.round(side * dpr);
-    canvas.height = Math.round(side * dpr);
+    canvas.style.width = cssSize + 'px';
+    canvas.style.height= cssSize + 'px';
+    canvas.width  = Math.round(cssSize * dpr);
+    canvas.height = Math.round(cssSize * dpr);
     const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // match CSS pixels for drawing code
+    ctx.setTransform(dpr,0,0,dpr,0,0);
     return ctx;
   }
 
-  // ====== List pills rendering (fast path) ===================================
-  function buildPill(label, idx) {
-    const d = document.createElement('div'); d.className='pill';
-    const chk = document.createElement('div'); chk.className='check'; chk.textContent='✓';
-    const i = document.createElement('div'); i.className='idx'; i.textContent=String(idx+1);
-    const lab = document.createElement('div'); lab.className='label'; lab.textContent=label;
+  function buildPill(label, idx){
+    const d=document.createElement('div'); d.className='pill';
+    const chk=document.createElement('div'); chk.className='check'; chk.textContent='✓';
+    const i=document.createElement('div'); i.className='idx'; i.textContent=String(idx+1);
+    const lab=document.createElement('div'); lab.className='label'; lab.textContent=label;
     d.append(chk,i,lab);
-    if (idx === state.current) d.classList.add('current');
+    if (idx===state.current) d.classList.add('current');
     if (state.done.includes(idx)) d.classList.add('done');
     return d;
   }
-
-  function renderList() {
+  function renderList(){
     el.title.textContent = state.title || '';
     el.title.style.display = state.title ? 'block' : 'none';
-
-    // Build fresh — still cheap with fragments and the usual small N in overlays
-    el.bar.innerHTML = '';
-    const frag = document.createDocumentFragment();
+    el.bar.innerHTML=''; const frag=document.createDocumentFragment();
     for (let i=0;i<state.items.length;i++) frag.appendChild(buildPill(state.items[i], i));
     el.bar.appendChild(frag);
   }
-
-  function patchCurrentAndDone() {
-    // Small diff to avoid rebuilding everything on small changes (e.g., next/prev/toggleDone)
+  function patchCurrentAndDone(){
     const nodes = el.bar.children;
-    for (let i=0;i<nodes.length;i++) {
-      const d = nodes[i];
-      d.classList.toggle('current', i === state.current);
+    for (let i=0;i<nodes.length;i++){
+      const d=nodes[i];
+      d.classList.toggle('current', i===state.current);
       d.classList.toggle('done', state.done.includes(i));
     }
   }
 
-  // ====== Wheel drawing =======================================================
+  // Wheel
   let ctx = sizeCanvasToDisplay(el.wheelCanvas, 640);
-  let angle = 0, vel = 0, spinning = false, resultIdx = null, lastTickIdx = null, raf = null;
-  let FRICTION = 0.9;
+  let angle=0, vel=0, spinning=false, resultIdx=null, lastTickIdx=null, raf=null, FRICTION=0.985;
 
   function buildColors(n){
-    if (n <= 0) return [];
-    const out = new Array(n);
-    for (let i=0;i<n;i++){
-      // pick a color that isn't the same as previous, and avoid matching the first on the last
-      const fallback = BASE_COLORS[i % BASE_COLORS.length];
-      for (let k=0;k<BASE_COLORS.length;k++){
-        const c = BASE_COLORS[(i+k) % BASE_COLORS.length];
-        const prev = (i>0) ? out[i-1] : null;
-        if (c === prev) continue;
-        if (i === n-1 && n > 1 && c === out[0]) continue;
-        out[i] = c; break;
+    if (n<=0) return [];
+    const out=new Array(n);
+    for(let i=0;i<n;i++){
+      const fallback = BASE_COLORS[i%BASE_COLORS.length];
+      for(let k=0;k<BASE_COLORS.length;k++){
+        const c = BASE_COLORS[(i+k)%BASE_COLORS.length];
+        const prev = (i>0)? out[i-1] : null;
+        if (c===prev) continue;
+        if (i===n-1 && n>1 && c===out[0]) continue;
+        out[i]=c; break;
       }
-      if (!out[i]) out[i] = fallback;
+      if(!out[i]) out[i]=fallback;
     }
     return out;
   }
-
   function wrapCenterText(ctx, text, x, y, maxWidth, lineHeight){
-    const words = String(text).split(' ');
-    let line = '', lines = [];
-    for (let n=0;n<words.length;n++){
-      const test = line + words[n] + (n < words.length-1 ? ' ' : '');
-      if (ctx.measureText(test).width > maxWidth && n > 0) {
-        lines.push(line.trim());
-        line = words[n] + ' ';
-      } else {
-        line = test;
-      }
+    const words=String(text).split(' '); let line=''; const lines=[];
+    for(let n=0;n<words.length;n++){
+      const test=line+words[n]+(n<words.length-1?' ':'');
+      if (ctx.measureText(test).width>maxWidth && n>0){ lines.push(line.trim()); line=words[n]+' '; }
+      else { line=test; }
     }
     lines.push(line.trim());
-    const total = (lines.length - 1) * lineHeight;
-    for (let i=0;i<lines.length;i++) ctx.fillText(lines[i], x, y - total/2 + i*lineHeight);
+    const total=(lines.length-1)*lineHeight;
+    for(let i=0;i<lines.length;i++) ctx.fillText(lines[i], x, y-total/2 + i*lineHeight);
   }
-
   function drawNeedle(cx, cy, r){
     ctx.save();
-      ctx.translate(cx, cy);
-      const rimY  = -r;
-      const tipY  = rimY + 60;  // into the wheel
-      const baseY = rimY - 60;   // outside rim
-      const halfW = 50;
-
-      ctx.beginPath();
-      ctx.moveTo(0, tipY);
-      ctx.lineTo(-halfW, baseY);
-      ctx.lineTo( halfW, baseY);
-      ctx.closePath();
-
-      ctx.fillStyle   = '#fc3239';
-      ctx.strokeStyle = 'rgba(0,0,0,.75)';
-      ctx.lineWidth   = 2.5;
-      ctx.lineJoin    = 'round';
-      ctx.fill();
-      ctx.stroke();
+    ctx.translate(cx, cy);
+    const rimY=-r, tipY=rimY+100, baseY=rimY-60, halfW=100;
+    ctx.beginPath(); ctx.moveTo(0, tipY); ctx.lineTo(-halfW, baseY); ctx.lineTo(halfW, baseY); ctx.closePath();
+    ctx.fillStyle='#fc3239'; ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.lineWidth=2.5; ctx.lineJoin='round'; ctx.fill(); ctx.stroke();
     ctx.restore();
   }
-
   function drawWheel(){
-    // keep canvas crisp if CSS size changed (unlikely, but safe)
     ctx = sizeCanvasToDisplay(el.wheelCanvas, 640);
-
-    const W = el.wheelCanvas.clientWidth;
-    const H = el.wheelCanvas.clientHeight;
-    const cx = W/2, cy = H/2, r = Math.min(cx, cy) - 8;
-
-    // background clear in CSS pixels (context already scaled)
-    ctx.clearRect(0,0,W,H);
-
-    const n = Math.max(1, state.items.length);
-    const step = (Math.PI*2)/n;
-    const colors = buildColors(n);
-
-    // slices + labels
-    for (let i=0;i<n;i++){
-      const a0 = angle + i*step;
-      const a1 = a0 + step;
+    const W=el.wheelCanvas.clientWidth, H=el.wheelCanvas.clientHeight;
+    const cx=W/2, cy=H/2, r=Math.min(cx,cy)-8; ctx.clearRect(0,0,W,H);
+    const n=Math.max(1,state.items.length), step=(Math.PI*2)/n, colors=buildColors(n);
+    for(let i=0;i<n;i++){
+      const a0=angle+i*step, a1=a0+step;
       ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,a0,a1); ctx.closePath();
-      ctx.fillStyle = colors[i%colors.length];
-      ctx.strokeStyle='#ffffff66'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
-
-      ctx.save();
-        ctx.translate(cx,cy);
-        const mid = a0 + step/2;
-        ctx.rotate(mid);
-        ctx.textAlign='right';
-        // font proportional to radius; capped for legibility
-        const fpx = clamp(Math.round(r/11), 28, 80);
-        ctx.font = `bold ${fpx}px system-ui,Segoe UI,Arial`;
-        ctx.fillStyle='#fff';
-        ctx.shadowColor='rgba(0,0,0,.75)'; ctx.shadowBlur=12;
-        ctx.fillText(state.items[i] || '', r-14, 6);
+      ctx.fillStyle=colors[i%colors.length]; ctx.strokeStyle='#ffffff66'; ctx.lineWidth=2; ctx.fill(); ctx.stroke();
+      ctx.save(); ctx.translate(cx,cy); const mid=a0+step/2; ctx.rotate(mid);
+      ctx.textAlign='right'; const fpx=clamp(Math.round(r/6),28,80);
+      ctx.font=`bold ${fpx}px system-ui,Segoe UI,Arial`; ctx.fillStyle='#fff'; ctx.shadowColor='rgba(0,0,0,.75)'; ctx.shadowBlur=12;
+      ctx.fillText(state.items[i]||'', r-14, 6);
       ctx.restore();
     }
-
-    // needle
-    drawNeedle(cx, cy, r);
-
-    // result badge
-    if (resultIdx !== null && !spinning){
-      ctx.beginPath(); ctx.arc(cx, cy, r*0.30, 0, Math.PI*2);
-      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fill();
-      ctx.strokeStyle='#ffffffcc'; ctx.lineWidth=2; ctx.stroke();
+    drawNeedle(cx,cy,r);
+    if(resultIdx!==null && !spinning){
+      ctx.beginPath(); ctx.arc(cx,cy,r*0.30,0,Math.PI*2);
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fill(); ctx.strokeStyle='#ffffffcc'; ctx.lineWidth=2; ctx.stroke();
       ctx.font='900 22px system-ui,Segoe UI,Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#fff';
-      const txt = state.items[resultIdx] || '';
-      const maxWidth = r*0.54;
-      wrapCenterText(ctx, txt, cx, cy, maxWidth, 24);
+      const txt=state.items[resultIdx]||''; const maxWidth=r*0.54; wrapCenterText(ctx, txt, cx, cy, maxWidth, 24);
     }
-
-    // title size tied to canvas size
     const titlePx = clamp(Math.round((el.wheelCanvas.clientWidth||480)/18), 32, 96);
     css('--titleWheelSize', `${titlePx}px`);
   }
 
-  // ====== Audio (guarded by mute) ============================================
-  let ac = null;
-  function ensureAC(){
-    if (mute || ac) return;
-    try { ac = new (window.AudioContext || window.webkitAudioContext)(); }
-    catch { ac = null; }
-    const resume = () => ac && ac.resume();
-    window.addEventListener('pointerdown', resume, { once:true });
-    window.addEventListener('keydown', resume, { once:true });
-    document.addEventListener('visibilitychange', resume, { once:true });
+  // Audio
+  let ac=null;
+  function ensureAC(){ if (mute||ac) return; try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch{ac=null;}
+    const resume=()=>ac&&ac.resume(); window.addEventListener('pointerdown',resume,{once:true});
+    window.addEventListener('keydown',resume,{once:true}); document.addEventListener('visibilitychange',resume,{once:true});
   }
-  function tone({freq=440, dur=120, type='sine', vol=0.08}={}){
-    if (mute || !ac) return;
-    const o = ac.createOscillator();
-    const g = ac.createGain();
-    o.type=type; o.frequency.value=freq; o.connect(g); g.connect(ac.destination);
-    g.gain.value=vol;
-    o.start();
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + Math.max(0.05, dur/1000));
-    o.stop(ac.currentTime + Math.max(0.06, dur/1000 + 0.02));
+  function tone({freq=440,dur=120,type='sine',vol=0.08}={}){ if(mute||!ac) return;
+    const o=ac.createOscillator(), g=ac.createGain(); o.type=type; o.frequency.value=freq; o.connect(g); g.connect(ac.destination);
+    g.gain.value=vol; o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+Math.max(0.05,dur/1000)); o.stop(ac.currentTime+Math.max(0.06,dur/1000+0.02));
   }
-  function sweep({from=300, to=900, dur=300, type='sine', vol=0.05}={}){
-    if (mute || !ac) return;
-    const o = ac.createOscillator();
-    const g = ac.createGain();
-    o.type=type; o.frequency.value=from; o.connect(g); g.connect(ac.destination);
-    g.gain.value=vol; o.start();
-    const t0 = ac.currentTime;
-    o.frequency.linearRampToValueAtTime(to, t0 + dur/1000);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur/1000);
-    o.stop(t0 + dur/1000 + 0.02);
+  function sweep({from=300,to=900,dur=300,type='sine',vol=0.05}={}){ if(mute||!ac) return;
+    const o=ac.createOscillator(), g=ac.createGain(); o.type=type; o.frequency.value=from; o.connect(g); g.connect(ac.destination);
+    g.gain.value=vol; o.start(); const t0=ac.currentTime; o.frequency.linearRampToValueAtTime(to,t0+dur/1000); g.gain.exponentialRampToValueAtTime(0.0001, t0+dur/1000); o.stop(t0+dur/1000+0.02);
   }
-  const playSpinStart = () => { ensureAC(); sweep({from:280,to:680,dur:260,type:'triangle',vol:0.06}); };
-  const playTick      = (i) => { ensureAC(); tone({freq:260+(i*6),dur:30,type:'square',vol:0.06}); };
-  const playLand      = () => { ensureAC(); tone({freq:120,dur:90,type:'sine',vol:0.09}); setTimeout(()=>tone({freq:880,dur:140,type:'triangle',vol:0.07}),110); };
+  const playSpinStart=()=>{ ensureAC(); sweep({from:280,to:680,dur:260,type:'triangle',vol:0.06}); };
+  const playTick=i=>{ ensureAC(); tone({freq:260+(i*6),dur:30,type:'square',vol:0.06}); };
+  const playLand=()=>{ ensureAC(); tone({freq:120,dur:90,type:'sine',vol:0.09}); setTimeout(()=>tone({freq:880,dur:140,type:'triangle',vol:0.07}),110); };
 
-  // ====== Wheel animation loop ==============================================
   function finalizeResult(){
-    const n = Math.max(1, state.items.length);
-    const step = (Math.PI*2)/n;
-    let a = (Math.PI*1.5 - angle)%(Math.PI*2); if (a<0) a += Math.PI*2;
-    const idx = Math.floor(a/step);
-    resultIdx = idx;
-    const choice = state.items[idx];
-    el.wheelResult.textContent = choice ? ('→ '+choice) : '';
-    playLand();
+    const n=Math.max(1,state.items.length), step=(Math.PI*2)/n;
+    let a=(Math.PI*1.5 - angle)%(Math.PI*2); if(a<0) a+=Math.PI*2;
+    const idx=Math.floor(a/step); resultIdx=idx; const choice=state.items[idx];
+    el.wheelResult.textContent = choice?('→ '+choice):''; playLand();
   }
-
   function tick(){
-    if (state.mode === 'wheel') {
+    if (state.mode==='wheel'){
       drawWheel();
       if (spinning){
-        const n = Math.max(1, state.items.length);
-        const step = (Math.PI*2)/n;
-        let a = (Math.PI*1.5 - angle)%(Math.PI*2); if (a<0) a+=Math.PI*2;
-        const idx = Math.floor(a/step);
-        if (idx !== lastTickIdx){ playTick(idx); lastTickIdx = idx; }
-        angle += vel;
-        vel *= FRICTION;
-        if (vel < 0.002){ spinning = false; vel = 0; finalizeResult(); }
+        const n=Math.max(1,state.items.length), step=(Math.PI*2)/n;
+        let a=(Math.PI*1.5 - angle)%(Math.PI*2); if(a<0) a+=Math.PI*2;
+        const idx=Math.floor(a/step); if(idx!==lastTickIdx){ playTick(idx); lastTickIdx=idx; }
+        angle+=vel; vel*=FRICTION; if(vel<0.002){ spinning=false; vel=0; finalizeResult(); }
       }
     }
-    raf = requestAnimationFrame(tick);
+    raf=requestAnimationFrame(tick);
   }
-
   function startSpin(payload){
-    ensureAC();
-    if (spinning) return;
+    ensureAC(); if(spinning) return;
     const vIn = (payload && typeof payload.vel==='number') ? payload.vel : 0.24;
     FRICTION  = (payload && typeof payload.friction==='number') ? payload.friction : 0.985;
-    vel = vIn; spinning = true; resultIdx = null; lastTickIdx = null;
-    el.wheelResult.textContent = '';
+    vel=vIn; spinning=true; resultIdx=null; lastTickIdx=null; el.wheelResult.textContent='';
     playSpinStart();
   }
   function stopSpin(){ spinning=false; vel=0; finalizeResult(); }
 
-  // ====== Completion FX (confetti) ===========================================
-  let completed = false;
-  let fxCanvas=null, fxCtx=null, fxRaf=null, fxEndTime=0, fxParticles=[];
-  let hideBarTimer = null;
-
-  function createFxCanvas(){
-    if (fxCanvas) return;
-    const vp = document.querySelector('.viewport');
-    fxCanvas = document.createElement('canvas');
-    fxCanvas.id = 'fxCanvas';
-    fxCanvas.style.position='absolute';
-    fxCanvas.style.inset='0';
-    fxCanvas.style.pointerEvents='none';
-    fxCtx = fxCanvas.getContext('2d');
-    vp.appendChild(fxCanvas);
-    resizeFx();
-    window.addEventListener('resize', resizeFx);
+  // Completion FX (unchanged from your version)
+  let completed=false, fxCanvas=null, fxCtx=null, fxRaf=null, fxEndTime=0, fxParticles=[], hideBarTimer=null;
+  function createFxCanvas(){ if(fxCanvas) return; const vp=document.querySelector('.viewport'); fxCanvas=document.createElement('canvas');
+    fxCanvas.id='fxCanvas'; fxCanvas.style.position='absolute'; fxCanvas.style.inset='0'; fxCanvas.style.pointerEvents='none';
+    fxCtx=fxCanvas.getContext('2d'); vp.appendChild(fxCanvas); resizeFx(); window.addEventListener('resize',resizeFx);
   }
-  function resizeFx(){
-    if (!fxCanvas) return;
-    const rect = document.body.getBoundingClientRect();
-    fxCanvas.width  = Math.max(1, Math.floor(rect.width  * (window.devicePixelRatio||1)));
-    fxCanvas.height = Math.max(1, Math.floor(rect.height * (window.devicePixelRatio||1)));
+  function resizeFx(){ if(!fxCanvas) return; const rect=document.body.getBoundingClientRect();
+    fxCanvas.width=Math.max(1,Math.floor(rect.width*(window.devicePixelRatio||1)));
+    fxCanvas.height=Math.max(1,Math.floor(rect.height*(window.devicePixelRatio||1)));
     fxCtx.setTransform(1,0,0,1,0,0);
   }
   function startConfetti(duration=2600){
-    createFxCanvas();
-    fxParticles = [];
-    const count = 140;
-    const W = fxCanvas.width, H = fxCanvas.height;
-    for (let i=0;i<count;i++){
-      fxParticles.push({
-        x: Math.random()*W,
-        y: -20 - Math.random()*60,
-        vx: (Math.random()-0.5)*3,
-        vy: 2 + Math.random()*3,
-        size: 6 + Math.random()*8,
-        rot: Math.random()*Math.PI*2,
-        vr: (Math.random()-0.5)*0.2,
-        color: `hsl(${Math.floor(Math.random()*360)},80%,60%)`,
-        shape: Math.random()<0.5 ? 'rect' : 'circle',
-      });
-    }
-    fxEndTime = performance.now() + duration;
-    if (!fxRaf) fxRaf = requestAnimationFrame(drawFx);
-    scheduleHideBar(Math.max(0, duration - 1200));
+    createFxCanvas(); fxParticles=[]; const count=140, W=fxCanvas.width, H=fxCanvas.height;
+    for(let i=0;i<count;i++){ fxParticles.push({x:Math.random()*W,y:-20-Math.random()*60,vx:(Math.random()-0.5)*3,vy:2+Math.random()*3,size:6+Math.random()*8,rot:Math.random()*Math.PI*2,vr:(Math.random()-0.5)*0.2,color:`hsl(${Math.floor(Math.random()*360)},80%,60%)`,shape:Math.random()<0.5?'rect':'circle'}); }
+    fxEndTime=performance.now()+duration; if(!fxRaf) fxRaf=requestAnimationFrame(drawFx); scheduleHideBar(Math.max(0,duration-1200));
   }
   function drawFx(t){
-    if (!fxCtx) return;
-    const W = fxCanvas.width, H = fxCanvas.height;
-    fxCtx.clearRect(0,0,W,H);
-    for (const p of fxParticles){
-      p.x += p.vx; p.y += p.vy; p.vy += 0.02; p.rot += p.vr;
-      fxCtx.save();
-      fxCtx.translate(p.x, p.y);
-      fxCtx.rotate(p.rot);
-      fxCtx.fillStyle = p.color;
-      if (p.shape==='rect'){
-        fxCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
-      } else {
-        fxCtx.beginPath(); fxCtx.arc(0,0, p.size*0.5, 0, Math.PI*2); fxCtx.fill();
-      }
-      fxCtx.restore();
-    }
-    if (t < fxEndTime) { fxRaf = requestAnimationFrame(drawFx); }
-    else { stopConfetti(); }
+    if(!fxCtx) return; const W=fxCanvas.width,H=fxCanvas.height; fxCtx.clearRect(0,0,W,H);
+    for(const p of fxParticles){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.02; p.rot+=p.vr; fxCtx.save(); fxCtx.translate(p.x,p.y); fxCtx.rotate(p.rot); fxCtx.fillStyle=p.color;
+      if(p.shape==='rect') fxCtx.fillRect(-p.size/2,-p.size/2,p.size,p.size*0.6);
+      else { fxCtx.beginPath(); fxCtx.arc(0,0,p.size*0.5,0,Math.PI*2); fxCtx.fill(); }
+      fxCtx.restore(); }
+    if(t<fxEndTime){ fxRaf=requestAnimationFrame(drawFx); } else { stopConfetti(); }
   }
-  function stopConfetti(){
-    if (fxRaf){ cancelAnimationFrame(fxRaf); fxRaf=null; }
-    if (fxCtx){ fxCtx.clearRect(0,0,fxCanvas.width, fxCanvas.height); }
-    if (fxCanvas && fxCanvas.parentNode){ fxCanvas.parentNode.removeChild(fxCanvas); }
-    fxCanvas = fxCtx = null;
-    window.removeEventListener('resize', resizeFx);
+  function stopConfetti(){ if(fxRaf){cancelAnimationFrame(fxRaf); fxRaf=null;} if(fxCtx){fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);} if(fxCanvas&&fxCanvas.parentNode){fxCanvas.parentNode.removeChild(fxCanvas);}
+    fxCanvas=fxCtx=null; window.removeEventListener('resize',resizeFx);
   }
-  function scheduleHideBar(ms=1200){
-    clearTimeout(hideBarTimer);
-    hideBarTimer = setTimeout(() => { el.bar.style.display = 'none'; }, ms);
-  }
+  function scheduleHideBar(ms=1200){ clearTimeout(hideBarTimer); hideBarTimer=setTimeout(()=>{ el.bar.style.display='none'; }, ms); }
+  function allDone(){ const n=state.items.length; if(n===0) return false; for(let i=0;i<n;i++){ if(!state.done.includes(i)) return false; } return true; }
+  function completeChallenge(){ if(completed) return; completed=true; document.body.classList.add('completed'); startConfetti(2600); }
+  function maybeComplete(){ if(state.mode!=='list') return; if(allDone()) completeChallenge(); }
+  function clearCompletion(){ completed=false; document.body.classList.remove('completed'); clearTimeout(hideBarTimer); el.bar.style.display='flex'; stopConfetti(); }
 
-  function allDone(){
-    const n = state.items.length;
-    if (n === 0) return false;
-    for (let i=0;i<n;i++) if (!state.done.includes(i)) return false;
-    return true;
-  }
-  function completeChallenge(){
-    if (completed) return;
-    completed = true;
-    document.body.classList.add('completed');
-    startConfetti(2600);
-  }
-  function maybeComplete(){
-    if (state.mode !== 'list') return;
-    if (allDone()) completeChallenge();
-  }
-  function clearCompletion(){
-    completed = false;
-    document.body.classList.remove('completed');
-    clearTimeout(hideBarTimer);
-    el.bar.style.display = 'flex';
-    stopConfetti();
-  }
-
-  // ====== View toggles =======================================================
   function toggleViews(){
-    const isWheel = (state.mode === 'wheel');
+    const isWheel = (state.mode==='wheel');
+    const isSlots = (state.mode==='slots');
+
     document.body.classList.toggle('is-wheel', isWheel);
     el.wheelWrap.style.display = isWheel ? 'flex' : 'none';
-    el.bar.style.display = (isWheel || completed) ? 'none' : 'flex';
+    el.slotsWrap.style.display = isSlots ? 'flex' : 'none';
+    el.bar.style.display = (isWheel || isSlots || completed) ? 'none' : 'flex';
   }
 
-  // ====== Main render ========================================================
+
   function renderFull(){
-    applyInsetsFromState();
-    applyAlignment();
-    applyScale();
-    applyOrientation();
-    applyProgressive();
-    toggleViews();
-
-    if (state.mode === 'list') renderList();
-    else drawWheel(); // title sizing handled in drawWheel
-
-    if (!completed && allDone()) completeChallenge();
-    if (completed && !allDone()) clearCompletion();
+    applyInsetsFromState(); applyAlignment(); applyScale(); applyOrientation(); applyProgressive(); toggleViews();
+    if (state.mode==='list') renderList(); else drawWheel();
+    if (!completed && allDone()) completeChallenge(); if (completed && !allDone()) clearCompletion();
   }
-
-  // Tiny re-render (no DOM rebuild)
   function renderLight(){
-    applyAlignment();
-    applyOrientation();
-    applyProgressive();
-    toggleViews();
-    if (state.mode === 'list') patchCurrentAndDone();
-    else drawWheel();
+    applyAlignment(); applyOrientation(); applyProgressive(); toggleViews();
+    if (state.mode==='list') patchCurrentAndDone(); else drawWheel();
     if (!completed && allDone()) completeChallenge();
   }
 
-  // ====== WebSocket ==========================================================
-  let ws = null, backoff = 800;
-  function safeParse(json){
-    try { return JSON.parse(json); } catch { return null; }
-  }
-  function connect(){
-    try { ws = new WebSocket(wsUrl); } catch { return; }
-    ws.onopen = () => {
-      const reg = {type:'register', role:'overlay', channel};
-      const req = {type:'request-state', channel};
-      ws.send(JSON.stringify(reg));
-      ws.send(JSON.stringify(req));
-    };
-    ws.onmessage = (ev) => {
-      const msg = safeParse(ev.data);
-      if (!msg) return;
-      if (msg.type === 'state'){
-        Object.assign(state, msg.payload || {});
-        renderFull();
-        maybeComplete();
-      } else if (msg.type === 'cmd'){
-        handleCmd(msg);
-      }
-    };
-    ws.onclose = () => { setTimeout(connect, backoff); backoff = Math.min(backoff*1.6, 5000); };
-    ws.onerror = () => { try{ ws.close(); }catch{} };
-  }
+  // ---------- SLOTS MODE (Legend • Weapon • Weapon) ----------
+const REEL_HEIGHT = 220;   // keep in sync with CSS
+const CELL_HEIGHT = 110;   // keep in sync with CSS
+const REEL_STOP_STAGGER = 0.5; // seconds between reel stops
 
-  function handleCmd({cmd, payload}){
-    switch (cmd) {
-      case 'prev': {
-        state.current = Math.max(0, state.current - 1);
-        renderLight();
+let slotsSpinning = false;
+let slotsRAF = null;
+
+const reels = [
+  { el: el.reel0, t: 0, targetIdx: 0, list: [] },
+  { el: el.reel1, t: 0, targetIdx: 0, list: [] },
+  { el: el.reel2, t: 0, targetIdx: 0, list: [] },
+];
+let chosen = [{name:'',src:''},{name:'',src:''},{name:'',src:''}];
+
+function cleanNameFromFile(src, fallback=''){
+  try{
+    const base = src.split('/').pop().split('.')[0];
+    const raw = base.replace(/[_-]?(mobile|icon)(?:[_-]|$)/gi,' ').replace(/[_-]+/g,' ');
+    const s = raw.replace(/\s+/g,' ').trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : fallback;
+  }catch{ return fallback; }
+}
+function makeCellsHTML(list){
+  const ext = [...list, ...list, ...list];
+  return ext.map(it=>{
+    const name = it.name || cleanNameFromFile(it.src,'');
+    return `<div class="cell"><img src="${it.src}" alt="${name}"></div>`;
+  }).join('');
+}
+function populateReels(){
+  const S = state.slots || {};
+  const legends = (S.legends||[]).filter(x=>x.enabled);
+  const weapons = (S.weapons||[]).filter(x=>x.enabled);
+  const L = legends.length ? legends : (S.legends||[]);
+  const W = weapons.length ? weapons : (S.weapons||[]);
+
+  reels[0].list = L;
+  reels[1].list = W;
+  reels[2].list = W;
+
+  reels.forEach(r=>{ r.el.innerHTML = makeCellsHTML(r.list); });
+}
+function randomPick(list){
+  if (!list || !list.length) return {name:'',src:'',idx:0};
+  const idx = Math.floor(Math.random()*list.length);
+  const it = list[idx];
+  return { name: it.name, src: it.src, idx };
+}
+function setLabels(){
+  const n0 = chosen[0].name || cleanNameFromFile(chosen[0].src,'');
+  const n1 = chosen[1].name || cleanNameFromFile(chosen[1].src,'');
+  const n2 = chosen[2].name || cleanNameFromFile(chosen[2].src,'');
+  el.slotsLabel0.textContent = n0;
+  el.slotsLabel1.textContent = n1;
+  el.slotsLabel2.textContent = n2;
+}
+function startSlotsSpin(){
+  if (slotsSpinning) return;
+  populateReels();
+  if (!reels[0].list.length || !reels[1].list.length) return;
+
+  const dur = (state.slots && typeof state.slots.duration==='number') ? state.slots.duration : 2.5;
+
+  chosen[0] = randomPick(reels[0].list);
+  chosen[1] = randomPick(reels[1].list);
+  chosen[2] = randomPick(reels[2].list); // allow dup; change if you want uniqueness
+
+  reels.forEach((r,i)=>{ r.t=0; r.targetIdx = chosen[i].idx; });
+  setLabels();
+  slotsSpinning = true;
+
+  const t0 = performance.now();
+  const stops = [dur, dur+REEL_STOP_STAGGER, dur+REEL_STOP_STAGGER*2].map(s=>s*1000);
+  const easeOut = x => 1 - Math.pow(1-x, 3);
+
+  function step(t){
+    const elapsed = t - t0;
+    for (let i=0;i<3;i++){
+      const r = reels[i];
+      const stripLen = r.list.length * CELL_HEIGHT;
+      const k = Math.min(1, elapsed / stops[i]);
+      const eased = easeOut(k);
+      const baseLoop = (1 - eased) * 8 * stripLen; // lots of loops → zero
+      const targetOffset = r.targetIdx * CELL_HEIGHT;
+      const offset = (baseLoop + targetOffset) % (stripLen*3);
+      r.t = offset;
+      r.el.style.transform = `translateY(${-r.t}px)`;
+    }
+    if (elapsed < stops[2]) {
+      slotsRAF = requestAnimationFrame(step);
+    } else {
+      // snap
+      reels.forEach(r=>{
+        const stripLen = r.list.length * CELL_HEIGHT;
+        const offset = (r.targetIdx * CELL_HEIGHT) % (stripLen*3);
+        r.t = offset;
+        r.el.style.transform = `translateY(${-r.t}px)`;
+      });
+      slotsSpinning = false; slotsRAF = null;
+    }
+  }
+  if (slotsRAF) cancelAnimationFrame(slotsRAF);
+  slotsRAF = requestAnimationFrame(step);
+}
+function stopSlots(){
+  if (!slotsSpinning) return;
+  if (slotsRAF){ cancelAnimationFrame(slotsRAF); slotsRAF=null; }
+  reels.forEach(r=>{
+    const stripLen = r.list.length * CELL_HEIGHT;
+    const offset = (r.targetIdx * CELL_HEIGHT) % (stripLen*3);
+    r.t = offset;
+    r.el.style.transform = `translateY(${-r.t}px)`;
+  });
+  slotsSpinning = false;
+}
+
+
+
+  // WS
+  let ws=null, backoff=800;
+  function safeParse(json){ try{ return JSON.parse(json); } catch { return null; } }
+  function connect(){
+    try{ ws=new WebSocket(wsUrl); }catch{ return; }
+    ws.onopen=()=>{ ws.send(JSON.stringify({type:'register',role:'overlay',channel})); ws.send(JSON.stringify({type:'request-state',channel})); };
+    ws.onmessage=(ev)=>{ const msg=safeParse(ev.data); if(!msg) return;
+      if (msg.type==='state'){ Object.assign(state, msg.payload||{}); renderFull(); maybeComplete(); }
+      else if (msg.type==='cmd'){ handleCmd(msg); }
+    };
+    ws.onclose=()=>{ setTimeout(connect, backoff); backoff=Math.min(backoff*1.6,5000); };
+    ws.onerror=()=>{ try{ws.close();}catch{} };
+  }
+  function handleCmd({cmd,payload}){
+    switch(cmd){
+      case 'prev': state.current=Math.max(0,state.current-1); renderLight(); break;
+      case 'next':
+        if(state.mode==='list'){
+          if(state.progressive){ if(!state.done.includes(state.current)) state.done=[...state.done,state.current]; state.current=Math.min(state.items.length-1,state.current+1); }
+          else { state.current=Math.min(state.items.length-1,state.current+1); }
+          renderLight(); maybeComplete();
+        } else { startSpin(payload); }
         break;
-      }
-      case 'next': {
-        if (state.mode === 'list'){
-          if (state.progressive){
-            if (!state.done.includes(state.current)) state.done = [...state.done, state.current];
-            state.current = Math.min(state.items.length - 1, state.current + 1);
-          } else {
-            state.current = Math.min(state.items.length - 1, state.current + 1);
-          }
-          renderLight();
-          maybeComplete();
-        } else {
-          startSpin(payload);
-        }
-        break;
-      }
-      case 'toggleDone': {
-        if (state.done.includes(state.current)) {
-          state.done = state.done.filter(i => i !== state.current);
-        } else {
-          state.done = [...state.done, state.current];
-        }
-        renderLight();
-        maybeComplete();
-        break;
-      }
-      case 'reset': {
-        state.current = 0; state.done = [];
-        clearCompletion();
-        renderFull();
-        break;
-      }
-      case 'goto': {
-        const to = Number.isInteger(payload) ? payload : NaN;
-        if (!Number.isNaN(to)){
-          state.current = clamp(to, 0, Math.max(0, state.items.length - 1));
-          renderLight();
-        }
-        break;
-      }
+      case 'toggleDone':
+        if(state.done.includes(state.current)) state.done=state.done.filter(i=>i!==state.current);
+        else state.done=[...state.done,state.current];
+        renderLight(); maybeComplete(); break;
+      case 'reset': state.current=0; state.done=[]; clearCompletion(); renderFull(); break;
+      case 'goto': if(Number.isInteger(payload)){ state.current=clamp(payload,0,Math.max(0,state.items.length-1)); renderLight(); } break;
       case 'spin': startSpin(payload); break;
       case 'stop': stopSpin(); break;
+      case 'slotSpin': startSlotsSpin(); break;
+      case 'slotStop': stopSlots(); break;
+
+      // slots commands will be added later
     }
   }
 
-  // ====== Boot ===============================================================
   renderFull();
-  if (!raf) raf = requestAnimationFrame(tick);
+  if(!raf) raf=requestAnimationFrame(tick);
   connect();
 })();
 </script>

@@ -1,56 +1,50 @@
 StreamChallenge OBS
-
 A local tool to manage stream challenges (checklists, wheel of fortune, etc.) and show them in OBS through a browser source.
 
 📦 Setup (first time only)
+
 1. Install Node.js
-
 Download & install the LTS version from nodejs.org
-.
-
 Verify installation in terminal:
 
 node -v
 
-2. Install dependencies
 
+2. Install dependencies
 From the project folder, go into the ws-server folder and run:
 
 cd ws-server
 npm install
 
-🚀 Launching
-🪟 Windows
-
+🚀 Launching on Windows
+3. Launch the local server so OBS can pick it up as a source
 Double-click start.bat in the project root.
 
 This will:
+Start the local WebSocket server and open the controller.html file in your default browser
 
-Start the local WebSocket server
-
-Open the Controller in your default browser
-
-🍎 macOS
-
+🍎 Launching on macOS
+3. Launch the local server so OBS can pick it up as a source
 Open Terminal and run:
 
 cd path/to/StreamChallenge_OBS/ws-server
 node server.js
 
-
 Open controller.html in Chrome/Edge/Safari (just double-click it).
 
-🎥 Add Overlay to OBS
 
+
+🎥 Add Overlay to OBS
+4. Setting the tool as the OBS browser source
 In OBS → + → Browser
 
 Check "Local file"
-
 Select overlay.html from this project
-
 Set width/height to match your canvas (e.g. 1920×1080)
 
+
 🕹️ Usage
+5. Setting the tool as the OBS browser source
 
 Controller (controller.html) → Off-stream control panel
 
@@ -58,18 +52,15 @@ Overlay (overlay.html) → The visual that shows in OBS
 
 Both connect through the local WebSocket server (default: ws://127.0.0.1:17311).
 
+
 🔧 Common Issues
-
-Controller/Overlay says "Disconnected"
-
+'Controller/Overlay says "Disconnected"'
 Make sure the server is running (start.bat on Windows, node server.js on Mac).
-
 Allow Node.js through the firewall.
 
-Overlay is blank in OBS
-
+'Overlay is blank in OBS'
 Ensure you checked Local file and selected overlay.html.
-
 Channel names in Controller & Overlay must match (default: obs_challenge_overlay).
+
 
 That’s it — just launch the server, open the Controller, and add the Overlay to OBS 🎉

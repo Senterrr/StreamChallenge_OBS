@@ -1,8 +1,8 @@
 {
   "name": "obs-overlay-ws",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
+  "private": true,
   "scripts": {
     "start": "node server.js"
   },
