@@ -147,6 +147,14 @@ wss.on('connection', (ws) => {
       b.overlays.forEach(sock => { if (sock.readyState === 1) sock.send(payload); });
       return;
     }
+        // Overlay -> Panels: generic events (results, etc.)
+    if (msg.type === 'event' && channel) {
+      const b = bucketFor(channel);
+      const payload = JSON.stringify({ type: 'event', channel, event: msg.event, payload: msg.payload });
+      b.panels.forEach(sock => { if (sock.readyState === 1) sock.send(payload); });
+      return;
+    }
+
     // msg.type === 'request-state' → no-op; panels push state proactively
   });
 });

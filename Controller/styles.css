@@ -74,3 +74,6 @@ body,.wrap,.left,.right,.card,.panel,.previewBody,.previewEmbed{cursor:default}
 .grid .it .nm{ font-size:12px; font-weight:700; line-height:1.2 }
 .grid .it.off{ opacity:.35; filter:saturate(0.3) }
 .grid .it.off::after{ content:'×'; position:absolute; right:6px; top:2px; font-weight:900; opacity:.7 }
+
+
+

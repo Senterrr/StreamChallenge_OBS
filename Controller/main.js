@@ -56,6 +56,11 @@ const el = {
 // ===================== Load persisted =====================
 const saved = safeParse(localStorage.getItem(KEY)) || {};
 const state = Object.assign({}, DEFAULT_STATE, saved);
+
+// ensure slots + slotsHistory always exist
+if (!state.slots) state.slots = { duration: 2.5, legends: [], weapons: [] };
+if (!Array.isArray(state.slotsHistory)) state.slotsHistory = [];
+
 let wsUrlVal = saved.wsUrl || 'ws://127.0.0.1:17311';
 let channelVal = saved.channel || 'obs_challenge_overlay';
 const binds = safeParse(localStorage.getItem(BINDS_KEY)) || DEFAULT_BINDS;
@@ -143,7 +148,42 @@ function sendCmd(cmd,payload){ wsSend({type:'cmd',channel:channelVal,cmd,payload
 function connect(){
   try{ ws=new WebSocket(wsUrlVal); }catch(e){ setStatus('error'); return; }
   ws.onopen=()=>{ setStatus('connected'); backoff=800; wsSend({type:'register',role:'panel',channel:channelVal}); sendStateNow(); };
-  ws.onmessage=(ev)=>{ const msg = safeParse(ev.data); if (msg && msg.type==='request-state') sendStateNow(); };
+  ws.onmessage = (ev) => {
+  try {
+    const msg = JSON.parse(ev.data);
+
+    if (msg.type === 'request-state') {
+      sendState();
+      return;
+    }
+
+    // NEW: handle overlay -> panel events
+    if (msg.type === 'event' && msg.channel === channelVal) {
+      if (msg.event === 'slotResult' && msg.payload) {
+        // push newest first
+        state.slotsHistory.unshift({
+          ts: msg.payload.ts || Date.now(),
+          legend:  msg.payload.legend  || null,
+          weapon1: msg.payload.weapon1 || null,
+          weapon2: msg.payload.weapon2 || null,
+        });
+        // keep last 3
+        state.slotsHistory = state.slotsHistory.slice(0, 3);
+        persist();
+
+        // let Slots panel re-render history if it’s active
+        const panel = document.getElementById('panel-slots');
+        if (panel && typeof panel._renderHistory === 'function') {
+          panel._renderHistory();
+        }
+      }
+      if (msg.event === 'wheelResult') {
+        // optional: you can add a separate wheelHistory the same way
+      }
+      return;
+    }
+  } catch(e){}
+};
   ws.onclose = ()=>{ setStatus('disconnected'); setTimeout(connect, backoff); backoff=Math.min(backoff*1.6,5000); };
   ws.onerror = ()=>{ setStatus('error'); try{ws.close();}catch{} };
 }

@@ -61,32 +61,46 @@
 /* --- Slots visual polish --- */
 .slotsWrap{ display:none; align-items:center; justify-content:center; flex-direction:column; gap:16px; width:100% }
 
+/* reels row */
 .slotsReels{ display:flex; gap:18px }
 
-.reel{
+/* Reel chrome – uses your accent colors */
+.reel {
   width:200px; height:220px; overflow:hidden; position:relative;
-  border-radius:14px; border:1px solid #ffffff28;
+  border-radius:16px; border:1px solid #ffffff2a;
   background:
-    radial-gradient(140% 100% at 50% 0%, rgba(255,255,255,.08), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.2));
-  box-shadow: 0 8px 24px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04);
+    radial-gradient(120% 100% at 50% 0%, var(--accent1-soft), rgb(255, 255, 255) 90%),
+    linear-gradient(180deg, rgb(255, 255, 255), rgb(255, 255, 255));
+  box-shadow:
+    0 14px 36px rgba(0,0,0,.45),
+    inset 0 0 0 1px rgba(255,255,255,.06);
 }
-.reel::before{ /* faint highlight bezel */
+
+.reel::before{ /* subtle bezel */
   content:''; position:absolute; inset:0; border-radius:inherit;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  pointer-events:none;
+}
+/* selection window glow */
+.reel::after{
+  content:''; position:absolute; left:0; right:0;
+  top: calc(50% - 55px); height:110px;  /* same as CELL_H */
+  border-radius:12px;
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.16),
+    inset 0 0 24px var(--accent2-soft),
+    0 8px 22px rgba(0,0,0,.38);
   pointer-events:none;
 }
 
 .strip{ position:absolute; left:0; top:0; width:100%; will-change: transform }
 
-/* ensure total height = 110, not 110 + padding */
+/* keep total height = 110px */
 .strip .cell{
   display:flex; align-items:center; justify-content:center; flex-direction:column;
-  width:100%; height:110px; box-sizing: border-box; /* ← add this */
+  width:100%; height:110px; box-sizing:border-box;
   padding:10px 6px; text-align:center;
 }
-
-
 .strip .cell img{
   width:80px; height:80px; object-fit:contain; image-rendering:auto;
   filter: drop-shadow(0 6px 14px rgba(0,0,0,.5));
@@ -94,26 +108,22 @@
 }
 
 /* subtle motion blur while spinning */
-.slotsWrap.spinning .strip{ filter: blur(1.1px); }
+.slotsWrap.spinning .strip{ filter: blur(1.05px); }
 .slotsWrap:not(.spinning) .strip{ filter: none; }
 
-/* invert option */
-.slotsWrap.invert img{ filter: invert(1) brightness(1.6) drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+/* invert toggle */
+.slotsWrap.invert img{
+  filter: invert(1) brightness(1.6) drop-shadow(0 6px 14px rgba(0,0,0,.45));
+}
 
 /* labels under reels */
 .slotsLabels{ display:flex; gap:18px; font-weight:900 }
 .slotsLabels .label{
   width:200px; text-align:center; font-size:18px;
-  text-shadow:0 2px 8px #0009; opacity:.92;
+  text-shadow:0 2px 8px #0009; opacity:0;     /* hidden by default */
+  transition: opacity .25s ease;              /* fade-in */
 }
-/* selection window glow */
-.reel::after{
-  content:''; position:absolute; left:0; right:0;
-  top: calc(50% - 55px); height:110px;  /* same as CELL_H */
-  border-radius:10px;
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.18), inset 0 0 24px rgba(124,58,237,.22);
-  pointer-events:none;
-}
+.slotsLabels .label.show{ opacity: .95; }     /* revealed per reel */
 
 
 </style>
@@ -339,11 +349,26 @@
   const playLand=()=>{ ensureAC(); tone({freq:120,dur:90,type:'sine',vol:0.09}); setTimeout(()=>tone({freq:880,dur:140,type:'triangle',vol:0.07}),110); };
 
   function finalizeResult(){
-    const n=Math.max(1,state.items.length), step=(Math.PI*2)/n;
+    const n=Math.max(1,state.items.length);
+    const step=(Math.PI*2)/n;
     let a=(Math.PI*1.5 - angle)%(Math.PI*2); if(a<0) a+=Math.PI*2;
-    const idx=Math.floor(a/step); resultIdx=idx; const choice=state.items[idx];
-    el.wheelResult.textContent = choice?('→ '+choice):''; playLand();
+    const idx=Math.floor(a/step); resultIdx=idx;
+    const choice = state.items[idx];
+    el.wheelResult.textContent = choice ? ('→ ' + choice) : '';
+    playLand();
+
+    try {
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({
+          type: 'event',
+          channel,
+          event: 'wheelResult',
+          payload: { index: idx, label: choice || '', ts: Date.now() }
+        }));
+      }
+    } catch(e){}
   }
+
   function tick(){
     if (state.mode==='wheel'){
       drawWheel();
@@ -462,6 +487,15 @@ function makeCellsHTML(list){
   return out.join('');
 }
 
+function hideLabels(){
+  el.slotsLabel0.classList.remove('show');
+  el.slotsLabel1.classList.remove('show');
+  el.slotsLabel2.classList.remove('show');
+}
+function revealLabel(i){
+  (i===0? el.slotsLabel0 : i===1? el.slotsLabel1 : el.slotsLabel2).classList.add('show');
+}
+
 
 function populateReels(){
   const S = state.slots || {};
@@ -509,61 +543,86 @@ function resetReelToMiddle(r){
   setY(r, y);
 }
 
+function findIndexBySrc(list, src){
+  if (!src) return -1;
+  return list.findIndex(it => String(it.src).toLowerCase() === String(src).toLowerCase());
+}
 
-function startSlotsSpin(){
+function startSlotsSpin(payload){
   if (slotsSpinning) return;
   populateReels();
   if (!reels[0].list.length || !reels[1].list.length) return;
 
-  // read control params
+  // read control params (payload overrides state)
   const S = state.slots || {};
-  const durSec     = (typeof S.duration === 'number' && S.duration > 0) ? S.duration : 2.5;
-  const staggerSec = (typeof S.stagger  === 'number' && S.stagger  >= 0) ? S.stagger  : 0.5;
-  const invert     = !!S.invert;
+  const durSec     = Number(payload?.duration ?? S.duration ?? 2.5);
+  const staggerSec = Number(payload?.stagger  ?? S.stagger  ?? 0.5);
+  const invert     = !!(payload?.invert ?? S.invert);
 
-  // visuals flags
+  // visuals
   el.slotsWrap.classList.add('spinning');
   el.slotsWrap.classList.toggle('invert', invert);
 
-  // pre-pick targets
-  chosen[0] = randomPick(reels[0].list);
-  chosen[1] = randomPick(reels[1].list);
-  chosen[2] = randomPick(reels[2].list);
+  // --- PLAN → indices
+  const plan = payload?.plan || null;
+  let idx0 = plan ? findIndexBySrc(reels[0].list, plan.legendSrc)  : -1;
+  let idx1 = plan ? findIndexBySrc(reels[1].list, plan.weapon1Src) : -1;
+  let idx2 = plan ? findIndexBySrc(reels[2].list, plan.weapon2Src) : -1;
+
+  // fallback to random if plan missing or src not found
+  if (idx0 < 0) idx0 = Math.floor(Math.random() * reels[0].list.length);
+  if (idx1 < 0) idx1 = Math.floor(Math.random() * reels[1].list.length);
+  if (idx2 < 0) idx2 = Math.floor(Math.random() * reels[2].list.length);
+
+  // cache chosen items (for labels + event)
+  chosen[0] = { ...reels[0].list[idx0], idx: idx0 };
+  chosen[1] = { ...reels[1].list[idx1], idx: idx1 };
+  chosen[2] = { ...reels[2].list[idx2], idx: idx2 };
   setLabels();
 
-  // initialize reels to a clean middle position (so the math is stable)
-  reels.forEach(r=>{
+  // reset reels to clean middle position
+  reels.forEach(r => {
     r.started = false; r.done = false;
     resetReelToMiddle(r);
   });
 
+  // animation plan (DO NOT overwrite targetIdx later)
+  reels[0].targetIdx = idx0;
+  reels[1].targetIdx = idx1;
+  reels[2].targetIdx = idx2;
 
-  // plan animation per reel
-    const easeOut = x => 1 - Math.pow(1-x, 3);
-    const t0 = performance.now();
-
-    reels.forEach((r, i) => {
-      r.targetIdx = (i===0? chosen[0].idx : i===1? chosen[1].idx : chosen[2].idx);
-
-      const n = r.list.length;
-      const middleStartIndex = n * Math.floor(COPIES/2);
-
-      // Direction: 'down' means visually symbols move downward (strip translate increases positively)
-      // We keep translateY(-y), so higher y => strip goes up; to move symbols DOWN, we DECREASE y.
-      // That means endIndex must be SMALLER than start index for 'down'.
-      const dirSign = (DIR === 'down') ? -1 : +1;
-
-      // keep LOOPS small enough to stay inside the rendered COPIES (10 is plenty)
-      // With COPIES=10 and center at 5n, LOOPS=3 keeps endIndex in-range for both directions.
-      const endIndex = middleStartIndex + dirSign * (LOOPS * n) + r.targetIdx;
-
-      r.startY   = r.y; // from reset
-      r.endY     = endIndex * CELL_H - CENTER_OFFSET;
-      r.startTime= t0 + i * ((state.slots?.stagger ?? 0.5) * 1000);
-      r.endTime  = r.startTime + (state.slots?.duration ?? 2.5) * 1000;
-      r.started  = false;
-      r.done     = false;
+    // reset reels to middle position (as you already do)...
+  reels.forEach(r => {
+    r.started = false; r.done = false;
+    resetReelToMiddle(r);
   });
+
+  // ← NEW: hide labels until each reel finishes
+  hideLabels();
+
+  // animation plan (targetIdx already set above)
+  const easeOut = x => 1 - Math.pow(1-x, 3);
+  const t0 = performance.now();
+
+  reels.forEach((r, i) => {
+    const n = r.list.length;
+    const middleStartIndex = n * Math.floor(COPIES/2);
+    const dirSign = (DIR === 'down') ? -1 : +1;
+    const endIndex = middleStartIndex + dirSign * (LOOPS * n) + r.targetIdx;
+
+    r.startY    = r.y; // from reset
+    r.endY      = endIndex * CELL_H - CENTER_OFFSET;
+
+    // **All reels start together**
+    r.startTime = t0;
+
+    // **Each reel ends later by staggerSec**
+    r.endTime   = r.startTime + (durSec * 1000) + (i * staggerSec * 1000);
+
+    r.started   = false;
+    r.done      = false;
+  });
+
 
   slotsSpinning = true;
 
@@ -578,7 +637,7 @@ function startSlotsSpin(){
           r.started = true;
         } else {
           allDone = false;
-          continue; // not started yet
+          continue;
         }
       }
 
@@ -587,12 +646,15 @@ function startSlotsSpin(){
       const y = r.startY + (r.endY - r.startY) * k;
       setY(r, y);
 
-      if (t < 1){
+        if (t < 1){
         allDone = false;
       } else {
-        // snap exactly to end to avoid subpixel drift
-        setY(r, r.endY);
+        setY(r, r.endY);   // clamp to exact end
         r.done = true;
+
+        // ← NEW: fade in the label of the reel that just finished
+        const idx = reels.indexOf(r);
+        if (idx !== -1) revealLabel(idx);
       }
     }
 
@@ -602,12 +664,30 @@ function startSlotsSpin(){
       el.slotsWrap.classList.remove('spinning');
       slotsSpinning = false;
       slotsRAF = null;
+
+      // emit overlay-confirmed result
+      try {
+        if (ws && ws.readyState === 1) {
+          ws.send(JSON.stringify({
+            type: 'event',
+            channel,
+            event: 'slotResult',
+            payload: {
+              legend:  chosen[0],
+              weapon1: chosen[1],
+              weapon2: chosen[2],
+              ts: Date.now()
+            }
+          }));
+        }
+      } catch(e){}
     }
   }
 
   if (slotsRAF) cancelAnimationFrame(slotsRAF);
   slotsRAF = requestAnimationFrame(step);
 }
+
 
 function stopSlots(){
   if (!slotsSpinning) return;
@@ -663,7 +743,7 @@ function stopSlots(){
       case 'goto': if(Number.isInteger(payload)){ state.current=clamp(payload,0,Math.max(0,state.items.length-1)); renderLight(); } break;
       case 'spin': startSpin(payload); break;
       case 'stop': stopSpin(); break;
-      case 'slotSpin': startSlotsSpin(); break;
+      case 'slotSpin': startSlotsSpin(payload); break;
       case 'slotStop': stopSlots(); break;
 
       // slots commands will be added later

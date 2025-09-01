@@ -42,6 +42,13 @@ export function init(ctx){
           <div id="sl-weapons" class="grid"></div>
         </div>
       </div>
+      
+      <div class="card" style="margin-top:12px">
+        <div class="field" style="flex-direction:column; align-items:stretch; gap:8px">
+          <label class="hint">Last 3 spins</label>
+          <div id="sl-history"></div>
+        </div>
+      </div>
     `;
   }
 
@@ -78,6 +85,46 @@ export function init(ctx){
     return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : '';
   }
 
+  function niceName(x){
+  if (!x) return '';
+  if (x.name) return x.name;
+  // fallback to file-derived
+  const base = (x.src||'').split('/').pop().replace(/\.[^.]+$/,'');
+  const cleaned = base.replace(/[_-]?(mobile|icon)(?:[_-]|$)/gi,' ').replace(/[_-]+/g,' ').replace(/\s+/g,' ').trim();
+  return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : '';
+}
+
+function renderHistory(){
+  const holder = panel.querySelector('#sl-history');
+  const rows = (ctx.state.slotsHistory || []).map(h => {
+    const t = new Date(h.ts || Date.now());
+    const when = t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    return `
+      <tr>
+        <td>${when}</td>
+        <td>${niceName(h.legend)}</td>
+        <td>${niceName(h.weapon1)}</td>
+        <td>${niceName(h.weapon2)}</td>
+      </tr>`;
+  }).join('') || `<tr><td colspan="4" class="hint">No spins yet.</td></tr>`;
+
+  holder.innerHTML = `
+    <table class="table" style="width:100%; border-collapse:collapse">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Time</th>
+          <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Legend</th>
+          <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon 1</th>
+          <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon 2</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>`;
+}
+
+
   function renderGrid(container, list){
     container.innerHTML = list.map((it,idx)=>{
       const nm  = it.name || fileNameToNice(it.src);
@@ -106,6 +153,28 @@ export function init(ctx){
     renderGrid(slWeapons, state.slots.weapons);
     sendState();
   }
+
+  // Pick one enabled item (fallback to whole list if user disabled all)
+  function pickEnabled(list){
+    const pool = (list || []).filter(x => x.enabled !== false);
+    const src = pool.length ? pool : (list || []);
+    if (!src.length) return null;
+    const i = Math.floor(Math.random() * src.length);
+    return src[i]; // {src, name, enabled}
+  }
+
+  // Pick two different items (if only one available, duplicates are allowed)
+  function uniquePickTwo(list){
+    const pool = (list || []).filter(x => x.enabled !== false);
+    const src = pool.length ? pool : (list || []);
+    if (!src.length) return [null, null];
+    if (src.length === 1) return [src[0], src[0]];
+    const i1 = Math.floor(Math.random() * src.length);
+    let i2 = Math.floor(Math.random() * (src.length - 1));
+    if (i2 >= i1) i2++;
+    return [src[i1], src[i2]];
+  }
+
 
   function wire(){
     if (wired) return; wired = true;
@@ -145,8 +214,33 @@ export function init(ctx){
     });
 
     slRescan.addEventListener('click', ()=> rescanAndRender(slLegends, slWeapons));
-    slSpin.addEventListener('click', ()=> sendCmd('slotSpin'));
+    slSpin.addEventListener('click', ()=>{
+      ensureSlotsState();
+
+      const legend   = pickEnabled(state.slots.legends);
+      const [w1, w2] = uniquePickTwo(state.slots.weapons);
+
+      // build the plan ONCE
+      const plan = {
+        legendSrc:  legend?.src || '',
+        weapon1Src: w1?.src || '',
+        weapon2Src: w2?.src || '',
+      };
+
+      // and SEND that plan
+      sendCmd('slotSpin', {
+        plan,                                   // <-- use the plan object you just built
+        duration: state.slots.duration,
+        stagger:  state.slots.stagger,
+        invert:   !!state.slots.invert
+      });
+    });
+
     slStop.addEventListener('click', ()=> sendCmd('slotStop'));
+
+    renderHistory();
+    panel._renderHistory = renderHistory;
+
 
     // initial render
     (async () => {
