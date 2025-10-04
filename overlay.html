@@ -475,12 +475,30 @@ function cleanNameFromFile(src, fallback=''){
   }catch{ return fallback; }
 }
 
+
+function resolveImgSrc(src){
+  if (!src) return src;
+  const s = String(src);
+  if (/^(https?:|data:)/i.test(s)) return s;
+  const rel = s.startsWith('/') ? s : '/' + s.replace(/^\/+/, '');
+  if (location.protocol === 'file:') {
+    // derive http(s) base from ws param, fallback to localhost:17311
+    let base = String(wsUrl || '').replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://');
+    if (!/^https?:\/\//i.test(base)) base = 'http://127.0.0.1:17311';
+    base = base.replace(/\/+$/,'');
+    return base + rel;
+  }
+  return location.origin + rel;
+}
+
 function makeCellsHTML(list){
   const out = [];
   for (let c=0; c<COPIES; c++){
     for (const it of list){
       const name = it.name || cleanNameFromFile(it.src,'');
-      const src  = it.src?.startsWith('/') ? it.src : '/' + (it.src||'').replace(/^\/+/, '');
+      const raw = it.src || '';
+      const rooted = raw.startsWith('/') ? raw : '/' + raw.replace(/^\/+/, '');
+      const src = resolveImgSrc(rooted);
       out.push(`<div class="cell"><img src="${src}" alt="${name}"></div>`);
     }
   }

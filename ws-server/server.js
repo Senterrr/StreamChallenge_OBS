@@ -63,9 +63,60 @@ function listDir(dirAbs, webRelPrefix) {
 const server = http.createServer((req, res) => {
   // CORS (so controller/overlay from OBS/file:// can hit this)
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+
+  // ----- Slots manifest (NOW inside the handler)
+  if (req.url === '/slots-manifest') {
+    const legends = listDir(CHAR_DIR, 'Assets/ApexLegends/characters');
+    const weapons = listDir(WEAP_DIR, 'Assets/ApexLegends/weapons');
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ legends, weapons }));
+    return;
+  }
+
+    if (req.url && req.url.startsWith('/trigger')) {
+    (async () => {
+      try {
+        let body = '';
+        if (req.method === 'POST') {
+          for await (const chunk of req) body += chunk;
+        }
+
+        const fullUrl = new URL(req.url, `http://${HOST}:${PORT}`);
+        const params = fullUrl.searchParams;
+        const channel = params.get('channel') || 'obs_challenge_overlay';
+        const cmd = params.get('cmd') || null;
+
+        let payload = null;
+        // prefer POST JSON body
+        if (body) {
+          try { payload = JSON.parse(body); } catch { payload = null; }
+        } else if (params.has('payload')) {
+          try { payload = JSON.parse(decodeURIComponent(params.get('payload'))); } catch { payload = null; }
+        }
+
+        if (!cmd) {
+          res.writeHead(400, {'Content-Type':'application/json; charset=utf-8'});
+          return res.end(JSON.stringify({ error: 'missing cmd parameter' }));
+        }
+
+        const b = bucketFor(channel);
+        const message = JSON.stringify({ type: 'cmd', channel, cmd, payload });
+
+        // send to overlays subscribed to that channel
+        b.overlays.forEach(sock => { if (sock.readyState === 1) sock.send(message); });
+
+        res.writeHead(200, {'Content-Type':'application/json; charset=utf-8'});
+        return res.end(JSON.stringify({ ok: true, channel, cmd }));
+      } catch (err) {
+        res.writeHead(500, {'Content-Type':'application/json; charset=utf-8'});
+        return res.end(JSON.stringify({ error: 'server error' }));
+      }
+    })();
+    return;
+  }
 
   // ----- Slots manifest (NOW inside the handler)
   if (req.url === '/slots-manifest') {
