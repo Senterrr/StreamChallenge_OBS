@@ -9,7 +9,13 @@ export function init(ctx){
   function html(){
     return `
       <div class="title">Slots Mode (Apex)</div>
-
+      <div class="desc" style="margin-bottom:12px">
+        <div class="field" style="flex-direction:column; align-items:stretch; gap:6px">
+          <button class="toolbtn" id="sl-weapons-only">Weapons Only</button>
+          <button class="toolbtn" id="sl-character-only">Character Only</button>
+          <button class="toolbtn" id="sl-include-all">Include All</button>
+        </div>
+      </div>
       <div class="card" style="margin-bottom:12px">
         <div class="field" style="flex-wrap:wrap; gap:10px">
           <label>Spin Duration (s)</label>
@@ -53,12 +59,13 @@ export function init(ctx){
   }
 
   function ensureSlotsState(){
-    if (!state.slots) state.slots = { duration: 2.5, stagger: 0.5, invert: false, legends: [], weapons: [] };
+    if (!state.slots) state.slots = { duration: 2.5, stagger: 0.5, invert: false, legends: [], weapons: [], view: 'all' };
     if (typeof state.slots.duration !== 'number') state.slots.duration = 2.5;
     if (typeof state.slots.stagger  !== 'number') state.slots.stagger  = 0.5;
     if (typeof state.slots.invert   !== 'boolean') state.slots.invert   = false;
     if (!Array.isArray(state.slots.legends)) state.slots.legends = [];
     if (!Array.isArray(state.slots.weapons)) state.slots.weapons = [];
+    if (typeof state.slots.view !== 'string') state.slots.view = 'all';
   }
 
   async function fetchIntoState(){
@@ -175,7 +182,6 @@ function renderHistory(){
     return [src[i1], src[i2]];
   }
 
-
   function wire(){
     if (wired) return; wired = true;
     panel.innerHTML = html();
@@ -189,11 +195,30 @@ function renderHistory(){
     const slStop     = $('#sl-stop');
     const slLegends  = $('#sl-legends');
     const slWeapons  = $('#sl-weapons');
+    // NEW: view mode buttons
+    const slWeaponsOnly   = $('#sl-weapons-only');
+    const slCharacterOnly = $('#sl-character-only');
+    const slIncludeAll    = $('#sl-include-all');
 
     ensureSlotsState();
     slDuration.value = state.slots.duration;
     slStagger.value  = state.slots.stagger;
     slInvert.checked = !!state.slots.invert;
+
+    // NEW: toggle visibility of pick lists based on view mode
+    const slLegendsCard = slLegends.closest('.card');
+    const slWeaponsCard = slWeapons.closest('.card');
+    function applySlotsView(){
+      const view = state.slots.view || 'all';
+      // weapons-only -> hide legends list; character-only -> hide weapons list
+      slLegendsCard.style.display = (view === 'weapons') ? 'none' : '';
+      slWeaponsCard.style.display = (view === 'character') ? 'none' : '';
+      // optional: reflect active button state
+      [slIncludeAll, slWeaponsOnly, slCharacterOnly].forEach(btn=>btn?.classList.remove('active'));
+      if (view==='all') slIncludeAll?.classList.add('active');
+      if (view==='weapons') slWeaponsOnly?.classList.add('active');
+      if (view==='character') slCharacterOnly?.classList.add('active');
+    }
 
     // events
     slDuration.addEventListener('change', ()=>{
@@ -213,6 +238,26 @@ function renderHistory(){
       persist(); sendState();
     });
 
+    // NEW: view mode handlers
+    slIncludeAll.addEventListener('click', ()=>{
+      ensureSlotsState();
+      state.slots.view = 'all';
+      applySlotsView();
+      persist(); sendState();
+    });
+    slWeaponsOnly.addEventListener('click', ()=>{
+      ensureSlotsState();
+      state.slots.view = 'weapons';
+      applySlotsView();
+      persist(); sendState();
+    });
+    slCharacterOnly.addEventListener('click', ()=>{
+      ensureSlotsState();
+      state.slots.view = 'character';
+      applySlotsView();
+      persist(); sendState();
+    });
+
     slRescan.addEventListener('click', ()=> rescanAndRender(slLegends, slWeapons));
     slSpin.addEventListener('click', ()=>{
       ensureSlotsState();
@@ -229,7 +274,7 @@ function renderHistory(){
 
       // and SEND that plan
       sendCmd('slotSpin', {
-        plan,                                   // <-- use the plan object you just built
+        plan,
         duration: state.slots.duration,
         stagger:  state.slots.stagger,
         invert:   !!state.slots.invert
@@ -241,12 +286,12 @@ function renderHistory(){
     renderHistory();
     panel._renderHistory = renderHistory;
 
-
     // initial render
     (async () => {
       await loadManifestIfEmpty();
       renderGrid(slLegends, state.slots.legends);
       renderGrid(slWeapons, state.slots.weapons);
+      applySlotsView(); // NEW
     })();
 
     // store for auto-rescan on tab show

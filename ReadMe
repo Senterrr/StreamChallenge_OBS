@@ -25,12 +25,21 @@ Start the local WebSocket server and open the controller.html file in your defau
 
 🍎 Launching on macOS
 3. Launch the local server so OBS can pick it up as a source
-Open Terminal and run:
+Option A — Double-click launcher
+
+Double-click start-macos.command in the project root.
+
+This will:
+• Open a Terminal window running the local server
+• Open the Controller in your default browser
+• Open the Overlay (for testing) and copy its URL to your clipboard
+
+Option B — Manual run (Terminal)
 
 cd path/to/StreamChallenge_OBS/ws-server
 node server.js
 
-Open controller.html in Chrome/Edge/Safari (just double-click it).
+Then open Controller/controller.html in your browser.
 
 
 

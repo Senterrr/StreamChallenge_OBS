@@ -91,20 +91,37 @@
     inset 0 0 24px var(--accent2-soft),
     0 8px 22px rgba(0,0,0,.38);
   pointer-events:none;
+  transition: opacity .2s ease, height .2s ease;
 }
 
+/* When focused on result, hide the middle selection overlay so the landed item can use the full slot frame */
+.slotsWrap.focused .reel::after{ opacity: 0; }
+
 .strip{ position:absolute; left:0; top:0; width:100%; will-change: transform }
+/* Smoothly fade blur in/out while spinning */
+.strip{ transition: filter .25s ease-in-out; }
 
 /* keep total height = 110px */
 .strip .cell{
   display:flex; align-items:center; justify-content:center; flex-direction:column;
   width:100%; height:110px; box-sizing:border-box;
   padding:10px 6px; text-align:center;
+  transition: opacity .22s ease, transform .22s ease;
 }
 .strip .cell img{
   width:80px; height:80px; object-fit:contain; image-rendering:auto;
   filter: drop-shadow(0 6px 14px rgba(0,0,0,.5));
-  transition: filter .15s ease;
+  transition: filter .15s ease, transform .18s ease-out;
+}
+/* Scale up the landed items to fit the slot frame better */
+.strip .cell.landed img{ transform: scale(1.6); }
+/* In focused mode, push the scale a bit more for strong emphasis */
+.slotsWrap.focused .strip .cell.landed img{ transform: scale(2.2); }
+
+/* After landing, hide non-centered cells for a clean focus */
+.slotsWrap.focused .strip .cell:not(.landed){
+  opacity: 0;
+  transform: scale(0.4);
 }
 
 /* subtle motion blur while spinning */
@@ -202,6 +219,49 @@
     slotsLabel1: document.getElementById('slotsLabel1'),
     slotsLabel2: document.getElementById('slotsLabel2'),
   };
+
+  // Mark/unmark the centered landed cells for each reel
+  function clearLandedMarks(){
+    [el.reel0, el.reel1, el.reel2].forEach(strip => {
+      if (!strip) return;
+      const cells = strip.children || [];
+      for (let i=0;i<cells.length;i++) cells[i].classList.remove('landed');
+    });
+  }
+  function markCenterLanded(){
+    const strips = [el.reel0, el.reel1, el.reel2];
+    reels.forEach((r, idx) => {
+      const strip = strips[idx]; if (!strip) return;
+      const cells = strip.children; if (!cells || !cells.length) return;
+      const total = cells.length;
+      const y = (typeof r.endY === 'number') ? r.endY : (r.y || 0);
+      const rawIndex = Math.round((y + CENTER_OFFSET) / CELL_H);
+      const norm = ((rawIndex % total) + total) % total;
+      for (let i=0;i<total;i++) cells[i].classList.remove('landed');
+      cells[norm].classList.add('landed');
+    });
+  }
+
+  // Show/hide reels and labels based on controller's view mode
+  function applySlotsViewMask(){
+    const view = (state.slots && state.slots.view) || 'all';
+    const showLegend  = view !== 'weapons';
+    const showWeapons = view !== 'character';
+
+    // reel containers are the parent of strips
+    const r0 = el.reel0 && el.reel0.parentElement;
+    const r1 = el.reel1 && el.reel1.parentElement;
+    const r2 = el.reel2 && el.reel2.parentElement;
+
+    if (r0) r0.style.display = showLegend  ? '' : 'none';
+    if (r1) r1.style.display = showWeapons ? '' : 'none';
+    if (r2) r2.style.display = showWeapons ? '' : 'none';
+
+    // labels
+    if (el.slotsLabel0) el.slotsLabel0.style.display = showLegend  ? '' : 'none';
+    if (el.slotsLabel1) el.slotsLabel1.style.display = showWeapons ? '' : 'none';
+    if (el.slotsLabel2) el.slotsLabel2.style.display = showWeapons ? '' : 'none';
+  }
 
   const css = (k,v)=>document.documentElement.style.setProperty(k,v);
 
@@ -431,6 +491,8 @@
     el.wheelWrap.style.display = isWheel ? 'flex' : 'none';
     el.slotsWrap.style.display = isSlots ? 'flex' : 'none';
     el.bar.style.display = (isWheel || isSlots || completed) ? 'none' : 'flex';
+
+    if (isSlots) applySlotsViewMask();
   }
 
 
@@ -528,6 +590,12 @@ function populateReels(){
   reels.forEach(r => {
     r.el.innerHTML = makeCellsHTML(r.list);
   });
+  // Ensure mask is applied after (re)populate
+  applySlotsViewMask();
+  // Clear any previous landed highlights after re-render
+  clearLandedMarks();
+  // Ensure focus mode is cleared when repopulating
+  el.slotsWrap.classList.remove('focused');
 }
 
 function randomPick(list){
@@ -568,6 +636,8 @@ function findIndexBySrc(list, src){
 
 function startSlotsSpin(payload){
   if (slotsSpinning) return;
+  // Respect current mask before preparing reels
+  applySlotsViewMask();
   populateReels();
   if (!reels[0].list.length || !reels[1].list.length) return;
 
@@ -579,6 +649,7 @@ function startSlotsSpin(payload){
 
   // visuals
   el.slotsWrap.classList.add('spinning');
+  el.slotsWrap.classList.remove('focused');
   el.slotsWrap.classList.toggle('invert', invert);
 
   // --- PLAN → indices
@@ -617,6 +688,8 @@ function startSlotsSpin(payload){
 
   // ← NEW: hide labels until each reel finishes
   hideLabels();
+  // Clear any previous landed markers; new results will be marked when complete
+  clearLandedMarks();
 
   // animation plan (targetIdx already set above)
   const easeOut = x => 1 - Math.pow(1-x, 3);
@@ -683,6 +756,11 @@ function startSlotsSpin(payload){
       slotsSpinning = false;
       slotsRAF = null;
 
+      // Highlight the landed cells now that reels are at rest
+      markCenterLanded();
+      // Hide non-centered cells for clean presentation
+      el.slotsWrap.classList.add('focused');
+
       // emit overlay-confirmed result
       try {
         if (ws && ws.readyState === 1) {
@@ -724,6 +802,10 @@ function stopSlots(){
 
   el.slotsWrap.classList.remove('spinning');
   slotsSpinning = false;
+  // When forcibly stopping, also highlight whatever is centered
+  markCenterLanded();
+  // And focus the centered cells
+  el.slotsWrap.classList.add('focused');
 }
 
 
