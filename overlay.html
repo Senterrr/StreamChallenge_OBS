@@ -15,18 +15,27 @@
     --wrap-gap-list: 28px; --wrap-gap-wheel: 12px;
     --list-gap: 0px; --pill-pad-y: 8px; --pill-pad-x: 14px;
     --current-extra-gap: 8px; --pull: 0px;
-    --accent1: #7c3aed; --accent2: #22d3ee;
+    --accent1: #7c3aed; --accent2: #22d3ee;            /* default (classic) */
     --accent1-soft: rgba(124,58,237,.36);
     --accent2-soft: rgba(34,211,238,.36);
     --accent-ring: rgba(124,58,237,.35);
     --titleWheelSize: 64px;
   }
+
+  /* Style presets (applied via body class) */
+  body.style-classic{ --accent1:#7c3aed; --accent2:#22d3ee; --accent1-soft: rgba(124,58,237,.36); --accent2-soft: rgba(34,211,238,.36); --accent-ring: rgba(124,58,237,.35); }
+  body.style-neon{ --accent1:#ff3cac; --accent2:#2bd2ff; --accent1-soft: rgba(255,60,172,.35); --accent2-soft: rgba(43,210,255,.35); --accent-ring: rgba(255,60,172,.32); }
+  body.style-gold{ --accent1:#ff9a3c; --accent2:#ffd166; --accent1-soft: rgba(255,154,60,.36); --accent2-soft: rgba(255,209,102,.36); --accent-ring: rgba(255,154,60,.30); }
+  body.style-cyber{ --accent1:#0ea5e9; --accent2:#22d3ee; --accent1-soft: rgba(14,165,233,.36); --accent2-soft: rgba(34,211,238,.36); --accent-ring: rgba(14,165,233,.30); }
+  body.style-crimson{ --accent1:#ef4444; --accent2:#f59e0b; --accent1-soft: rgba(239,68,68,.36); --accent2-soft: rgba(245,158,11,.36); --accent-ring: rgba(239,68,68,.30); }
   html,body{height:100%}
   body{margin:0;background:transparent !important;color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;overflow:hidden}
   .viewport{position:absolute;inset:var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);pointer-events:none}
   .frame{position:absolute;inset:var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);border:2px dashed var(--frame);border-radius:14px;pointer-events:none;display:none}
   .root{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:scale(var(--scale));transform-origin:center}
   .wrap{display:flex;align-items:center;justify-content:var(--align);gap:var(--wrap-gap-list);width:100%}
+  /* Keep content above backdrop VFX layers */
+  .root .wrap{ position:relative; z-index:2 }
   body.is-wheel .wrap{gap:var(--wrap-gap-wheel)}
   .wrap.stack{flex-direction:column;align-items:var(--align);justify-content:flex-start}
   .title{padding:12px 18px;font-weight:900;font-size:22px;border-radius:12px;background:linear-gradient(135deg,var(--accent1-soft),var(--accent2-soft));border:1px solid #ffffff24;text-shadow:0 2px 8px #00000099;text-align:var(--title-text)}
@@ -93,9 +102,54 @@
   pointer-events:none;
   transition: opacity .2s ease, height .2s ease;
 }
+  /* Frame shape presets via body classes */
+  body.frame-rounded .reel{ border-radius:16px; }
+  body.frame-rounded .reel::after{ border-radius:12px; }
+
+  body.frame-square .reel{ border-radius:4px; }
+  body.frame-square .reel::after{ border-radius:6px; }
+
+  body.frame-pill .reel{ border-radius:999px; }
+  body.frame-pill .reel::after{ border-radius:999px; }
+
+  body.frame-cut .reel{ border-radius:0; clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); }
+  body.frame-cut .reel::after{ border-radius:0; clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); }
+
 
 /* When focused on result, hide the middle selection overlay so the landed item can use the full slot frame */
 .slotsWrap.focused .reel::after{ opacity: 0; }
+
+  /* Aggressive Frame FX presets (applied via body class) */
+  /* Standard: default behavior (no extra rules required) */
+  body.framefx-nohighlight .reel::after{ display:none; }
+  body.framefx-minimal .reel{
+    border:none; box-shadow:none; background:transparent;
+  }
+  body.framefx-minimal .reel::before{ display:none; }
+  body.framefx-minimal .reel::after{ display:none; }
+  body.framefx-glow .reel{
+    border:1px solid transparent;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.12), 0 0 36px 10px var(--accent1-soft), inset 0 0 0 1px rgba(255,255,255,.06);
+    background: radial-gradient(120% 100% at 50% 0%, var(--accent1-soft), rgba(255,255,255,0.85) 85%);
+  }
+  body.framefx-glow .reel::after{
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.25), inset 0 0 28px var(--accent2-soft), 0 8px 22px rgba(0,0,0,.38);
+  }
+  /* Curved glass effect: subtle top/bottom curvature via mask/gradients */
+  body.framefx-curved .reel{
+    overflow:hidden; position:relative;
+  }
+  body.framefx-curved .reel::before{
+    content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,.55), rgba(255,255,255,0) 60%),
+      radial-gradient(120% 80% at 50% 110%, rgba(0,0,0,.22), rgba(0,0,0,0) 60%);
+    mix-blend-mode:soft-light;
+  }
+  /* Tilted look: add perspective tilt and shadow */
+  body.framefx-tilt .slotsReels{ perspective: 800px; }
+  body.framefx-tilt .reel{ transform: rotateX(10deg); box-shadow: 0 22px 40px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.06); }
+  body.framefx-tilt .reel::after{ transform: translateZ(0); }
 
 .strip{ position:absolute; left:0; top:0; width:100%; will-change: transform }
 /* Smoothly fade blur in/out while spinning */
@@ -142,6 +196,42 @@
 }
 .slotsLabels .label.show{ opacity: .95; }     /* revealed per reel */
 
+/* ---- Overlay VFX: vignette, center glow, spin glow, pulse, shake ---- */
+/* Backdrop vignette behind content so it doesn't obscure slots */
+.vfxVignette{ position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease; z-index:1; mix-blend-mode:multiply; }
+.vfxVignette.normal{ background: radial-gradient(100% 100% at 50% 50%, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%); }
+body.vfx-on .vfxVignette.show{ opacity:1; }
+
+/* Center glow used for reverse effect (bright center without covering icons) */
+.vfxCenterGlow{ position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease; z-index:1; mix-blend-mode:screen; }
+.vfxCenterGlow::before{ content:''; position:absolute; inset:0; background: radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.55), rgba(255,255,255,0) 60%); filter: blur(12px); }
+body.vfx-on .vfxCenterGlow.show{ opacity:1; }
+
+.spinGlow{ position:absolute; left:0; right:0; top:0; height:120px; pointer-events:none; opacity:0; transition: opacity .25s ease; mix-blend-mode:screen; z-index:4; }
+.spinGlow::before{ content:''; position:absolute; inset:0; background: radial-gradient(80% 60% at 50% 0%, var(--accent2-soft), rgba(255,255,255,0)); filter: blur(12px); opacity:.7; }
+body.vfx-on .spinGlow.show{ opacity:1; }
+
+@keyframes reelPulse {
+  0% { box-shadow: 0 14px 36px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06); }
+  50%{ box-shadow: 0 18px 44px rgba(0,0,0,.55), 0 0 26px 8px var(--accent2-soft), inset 0 0 0 1px rgba(255,255,255,.10); }
+  100%{ box-shadow: 0 14px 36px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06); }
+}
+body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infinite; }
+
+@keyframes quickShake {
+  0%{ transform: translate3d(0,0,0); }
+  20%{ transform: translate3d(2px,-2px,0); }
+  40%{ transform: translate3d(-2px,2px,0); }
+  60%{ transform: translate3d(2px,1px,0); }
+  80%{ transform: translate3d(-1px,-2px,0); }
+  100%{ transform: translate3d(0,0,0); }
+}
+.slotsWrap.shake{ animation: quickShake 220ms ease-in-out; }
+
+/* Audio gate button (outside the viewport for clickability) */
+.audioGate{ position:fixed; right:14px; top:14px; z-index:10; pointer-events:auto; display:none; }
+.audioGate .btn{ padding:8px 12px; border-radius:10px; background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fff; font-weight:800; border:1px solid #ffffff40; box-shadow:0 6px 18px rgba(0,0,0,.35); cursor:pointer; }
+
 
 </style>
 </head>
@@ -149,6 +239,9 @@
   <div class="frame" id="frame"></div>
   <div class="viewport">
     <div class="root">
+      <div class="vfxVignette normal" id="vfxVignette"></div>
+      <div class="vfxCenterGlow" id="vfxCenterGlow"></div>
+      <div class="spinGlow" id="spinGlow"></div>
       <div id="wrap" class="wrap">
         <div id="title" class="title"></div>
         <div id="bar" class="bar" role="list"></div>
@@ -171,6 +264,7 @@
       </div>
     </div>
   </div>
+  <div class="audioGate" id="audioGate"><button class="btn" id="audioGateBtn">Enable Audio</button></div>
 
 <script>
 (() => {
@@ -218,6 +312,11 @@
     slotsLabel0: document.getElementById('slotsLabel0'),
     slotsLabel1: document.getElementById('slotsLabel1'),
     slotsLabel2: document.getElementById('slotsLabel2'),
+    vfxVignette: document.getElementById('vfxVignette'),
+    vfxCenterGlow: document.getElementById('vfxCenterGlow'),
+    spinGlow: document.getElementById('spinGlow'),
+    audioGate: document.getElementById('audioGate'),
+    audioGateBtn: document.getElementById('audioGateBtn'),
   };
 
   // Mark/unmark the centered landed cells for each reel
@@ -281,6 +380,40 @@
     el.bar.classList.toggle('vertical', v);
   }
   function applyProgressive(){ document.body.classList.toggle('progressive', !!state.progressive); }
+  function applyStylePreset(){
+    const s = (state.slots && state.slots.style) || 'classic';
+    const classes = ['style-classic','style-neon','style-gold','style-cyber','style-crimson'];
+    classes.forEach(c=>document.body.classList.remove(c));
+    document.body.classList.add('style-' + (s in {classic:1,neon:1,gold:1,cyber:1,crimson:1} ? s : 'classic'));
+  }
+  function applyFramePreset(){
+    const f = (state.slots && state.slots.frame) || 'rounded';
+    const classes = ['frame-rounded','frame-square','frame-pill','frame-cut'];
+    classes.forEach(c=>document.body.classList.remove(c));
+    const chosen = (f in {rounded:1,square:1,pill:1,cut:1}) ? f : 'rounded';
+    document.body.classList.add('frame-' + chosen);
+  }
+  function applyFrameFxPreset(){
+    const fx = (state.slots && state.slots.frameFx) || 'standard';
+    const classes = ['framefx-standard','framefx-nohighlight','framefx-curved','framefx-tilt','framefx-minimal','framefx-glow'];
+    classes.forEach(c=>document.body.classList.remove(c));
+    const chosen = (fx in {standard:1,nohighlight:1,curved:1,tilt:1,minimal:1,glow:1}) ? fx : 'standard';
+    document.body.classList.add('framefx-' + chosen);
+  }
+  function applySfxVfx(){
+    const s = state.slots || {};
+    const vfx = s.vfx !== false;
+    document.body.classList.toggle('vfx-on', vfx);
+    // visibility of overlays is managed during spin; keep gate updated
+    updateAudioGateVisibility();
+  }
+
+  function updateAudioGateVisibility(){
+    const s = state.slots || {};
+    const wantsAudio = (s.sfx !== false) && !mute;
+    const shouldShow = wantsAudio && (!ac || (ac && ac.state !== 'running'));
+    if (el.audioGate) el.audioGate.style.display = shouldShow ? 'block' : 'none';
+  }
   function applyAlignment(){
     let align='center', origin='center', text='center';
     if (state.align === 'left')  { align='flex-start'; origin='left';  text='left'; }
@@ -392,9 +525,13 @@
 
   // Audio
   let ac=null;
-  function ensureAC(){ if (mute||ac) return; try{ac=new (window.AudioContext||window.webkitAudioContext)();}catch{ac=null;}
-    const resume=()=>ac&&ac.resume(); window.addEventListener('pointerdown',resume,{once:true});
-    window.addEventListener('keydown',resume,{once:true}); document.addEventListener('visibilitychange',resume,{once:true});
+  function ensureAC(){
+    if (mute) return;
+    if (!ac) {
+      try{ ac=new (window.AudioContext||window.webkitAudioContext)(); }catch{ ac=null; }
+    }
+    if (ac && ac.state === 'suspended') { try{ ac.resume(); }catch{} }
+    updateAudioGateVisibility();
   }
   function tone({freq=440,dur=120,type='sine',vol=0.08}={}){ if(mute||!ac) return;
     const o=ac.createOscillator(), g=ac.createGain(); o.type=type; o.frequency.value=freq; o.connect(g); g.connect(ac.destination);
@@ -497,12 +634,12 @@
 
 
   function renderFull(){
-    applyInsetsFromState(); applyAlignment(); applyScale(); applyOrientation(); applyProgressive(); toggleViews();
+  applyInsetsFromState(); applyAlignment(); applyScale(); applyOrientation(); applyProgressive(); applyStylePreset(); applyFramePreset(); applyFrameFxPreset(); applySfxVfx(); toggleViews();
     if (state.mode==='list') renderList(); else drawWheel();
     if (!completed && allDone()) completeChallenge(); if (completed && !allDone()) clearCompletion();
   }
   function renderLight(){
-    applyAlignment(); applyOrientation(); applyProgressive(); toggleViews();
+  applyAlignment(); applyOrientation(); applyProgressive(); applyStylePreset(); applyFramePreset(); applyFrameFxPreset(); applySfxVfx(); toggleViews();
     if (state.mode==='list') patchCurrentAndDone(); else drawWheel();
     if (!completed && allDone()) completeChallenge();
   }
@@ -521,10 +658,32 @@ const DIR    = 'down';       // 'down' for classic feel, 'up' if you prefer the 
 let slotsSpinning = false;
 let slotsRAF = null;
 
+// Slots VFX: particles burst
+let slotsFxCanvas=null, slotsFxCtx=null, slotsFxRaf=null, slotsFxEndTime=0, slotsFxParticles=[];
+function createSlotsFxCanvas(){ if(slotsFxCanvas) return; const vp=document.querySelector('.viewport'); slotsFxCanvas=document.createElement('canvas'); slotsFxCanvas.id='slotsFx'; slotsFxCanvas.style.position='absolute'; slotsFxCanvas.style.inset='0'; slotsFxCanvas.style.pointerEvents='none'; slotsFxCanvas.style.zIndex='7'; vp.appendChild(slotsFxCanvas); resizeSlotsFx(); window.addEventListener('resize',resizeSlotsFx); }
+function resizeSlotsFx(){ if(!slotsFxCanvas) return; const rect=document.body.getBoundingClientRect(); slotsFxCanvas.width=Math.max(1,Math.floor(rect.width*(window.devicePixelRatio||1))); slotsFxCanvas.height=Math.max(1,Math.floor(rect.height*(window.devicePixelRatio||1))); slotsFxCtx=slotsFxCanvas.getContext('2d'); slotsFxCtx.setTransform(1,0,0,1,0,0); }
+function stopSlotsFx(){ if(slotsFxRaf){ cancelAnimationFrame(slotsFxRaf); slotsFxRaf=null; } if(slotsFxCtx){ slotsFxCtx.clearRect(0,0,slotsFxCanvas.width,slotsFxCanvas.height); } if(slotsFxCanvas&&slotsFxCanvas.parentNode){ slotsFxCanvas.parentNode.removeChild(slotsFxCanvas);} slotsFxCanvas=slotsFxCtx=null; window.removeEventListener('resize',resizeSlotsFx); }
+function drawSlotsFx(t){ if(!slotsFxCtx) return; const W=slotsFxCanvas.width,H=slotsFxCanvas.height; slotsFxCtx.clearRect(0,0,W,H); const now=performance.now(); for(const p of slotsFxParticles){ const dt=(now - p.t0)/1000; p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.life-=dt; p.rot+=p.vr; slotsFxCtx.save(); slotsFxCtx.translate(p.x,p.y); slotsFxCtx.rotate(p.rot); slotsFxCtx.globalAlpha=Math.max(0,Math.min(1,p.life/p.life0)); slotsFxCtx.fillStyle=p.color; if(p.shape==='rect'){ slotsFxCtx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.6); } else { slotsFxCtx.beginPath(); slotsFxCtx.arc(0,0,p.s*0.5,0,Math.PI*2); slotsFxCtx.fill(); } slotsFxCtx.restore(); }
+  slotsFxParticles=slotsFxParticles.filter(p=>p.life>0 && p.y < H+80);
+  if(performance.now()<slotsFxEndTime && slotsFxParticles.length){ slotsFxRaf=requestAnimationFrame(drawSlotsFx); } else { stopSlotsFx(); }
+}
+function startSlotsBurst(){ const S=state.slots||{}; if(S.vfx===false) return; createSlotsFxCanvas(); const W=slotsFxCanvas.width, H=slotsFxCanvas.height; const dpr=(window.devicePixelRatio||1); function centerOf(node){ if(!node) return {x:W/2,y:H/2}; const r=node.getBoundingClientRect(); const cx=(r.left+r.right)/2, cy=(r.top+r.bottom)/2; return {x:cx*dpr, y:cy*dpr}; }
+  const reelsEls=[el.reel0?.parentElement, el.reel1?.parentElement, el.reel2?.parentElement].filter(n=>n && getComputedStyle(n).display!=='none');
+  const centers = reelsEls.length? reelsEls.map(centerOf) : [{x:W/2,y:H/2}];
+  const colors=['#ffffff','rgba(255,255,255,0.9)','var(--accent1)','var(--accent2)'];
+  slotsFxParticles=[]; const per=60; for(const c of centers){ for(let i=0;i<per;i++){ const a=Math.random()*Math.PI*2; const sp=2+Math.random()*4; const vx=Math.cos(a)*sp, vy=Math.sin(a)*sp; const s=6+Math.random()*10; const color = (i%4<2)? 'rgba(255,255,255,0.85)' : (i%4===2? getComputedStyle(document.body).getPropertyValue('--accent1').trim() : getComputedStyle(document.body).getPropertyValue('--accent2').trim()); slotsFxParticles.push({x:c.x,y:c.y,vx,vy,vr:(Math.random()-0.5)*0.2,rot:0,s,shape:Math.random()<0.5?'rect':'circle',g:0.05,life:0.9+Math.random()*0.6,life0:1.2,t0:performance.now(),color}); } }
+  slotsFxEndTime=performance.now()+1200; if(!slotsFxRaf) slotsFxRaf=requestAnimationFrame(drawSlotsFx);
+}
+
+// Slots SFX
+function playSlotSpinStart(){ const s=state.slots||{}; if(s.sfx===false) return; ensureAC(); sweep({from:220,to:720,dur:340,type:'sawtooth',vol:0.06}); }
+function playSlotLand(){ const s=state.slots||{}; if(s.sfx===false) return; ensureAC(); tone({freq:180,dur:110,type:'square',vol:0.10}); setTimeout(()=>tone({freq:960,dur:140,type:'triangle',vol:0.08}),120); }
+function playSlotTick(i){ const s=state.slots||{}; if(s.sfx===false) return; ensureAC(); const base=340; const step= i*22; tone({freq: base+step, dur:24, type:'square', vol:0.06}); }
+
 const reels = [
-  { el: el.reel0, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0 },
-  { el: el.reel1, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0 },
-  { el: el.reel2, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0 },
+  { el: el.reel0, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0, nextTickAt: 0 },
+  { el: el.reel1, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0, nextTickAt: 0 },
+  { el: el.reel2, list: [], y: 0, startTime: 0, endTime: 0, startY: 0, endY: 0, started: false, done: false, targetIdx: 0, nextTickAt: 0 },
 ];
 let chosen = [{name:'',src:''},{name:'',src:''},{name:'',src:''}];
 
@@ -651,6 +810,19 @@ function startSlotsSpin(payload){
   el.slotsWrap.classList.add('spinning');
   el.slotsWrap.classList.remove('focused');
   el.slotsWrap.classList.toggle('invert', invert);
+  // VFX on spin start
+  const S2 = state.slots || {};
+  if (S2.vfx !== false) {
+    const vg = String(S2.vignette||'off');
+    el.vfxVignette.classList.remove('show');
+    if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show');
+    if (vg==='normal') { el.vfxVignette.classList.add('show'); }
+    else if (vg==='reverse') { el.vfxCenterGlow && el.vfxCenterGlow.classList.add('show'); }
+    else if (vg==='both') { el.vfxVignette.classList.add('show'); el.vfxCenterGlow && el.vfxCenterGlow.classList.add('show'); }
+    el.spinGlow.classList.add('show');
+  }
+  // SFX on spin start
+  playSlotSpinStart();
 
   // --- PLAN → indices
   const plan = payload?.plan || null;
@@ -673,6 +845,7 @@ function startSlotsSpin(payload){
   reels.forEach(r => {
     r.started = false; r.done = false;
     resetReelToMiddle(r);
+    r.nextTickAt = 0;
   });
 
   // animation plan (DO NOT overwrite targetIdx later)
@@ -712,6 +885,7 @@ function startSlotsSpin(payload){
 
     r.started   = false;
     r.done      = false;
+    r.nextTickAt = 0;
   });
 
 
@@ -737,11 +911,23 @@ function startSlotsSpin(payload){
       const y = r.startY + (r.endY - r.startY) * k;
       setY(r, y);
 
+      // Late-phase tick SFX for slot-machine feel (when nearing the end)
+      if (t >= 0.72 && t < 1 && (state.slots||{}).sfx !== false) {
+        // Interval shrinks as we approach completion
+        const interval = 240 - Math.min(180, (t - 0.72) * 900); // ~240ms -> ~60ms
+        if (!r.nextTickAt || now >= r.nextTickAt) {
+          const reelIndex = reels.indexOf(r);
+          playSlotTick(reelIndex);
+          r.nextTickAt = now + Math.max(50, interval);
+        }
+      }
+
         if (t < 1){
         allDone = false;
       } else {
-        setY(r, r.endY);   // clamp to exact end
+  setY(r, r.endY);   // clamp to exact end
         r.done = true;
+  r.nextTickAt = 0;
 
         // ← NEW: fade in the label of the reel that just finished
         const idx = reels.indexOf(r);
@@ -760,6 +946,14 @@ function startSlotsSpin(payload){
       markCenterLanded();
       // Hide non-centered cells for clean presentation
       el.slotsWrap.classList.add('focused');
+
+      // Landing SFX + VFX
+      playSlotLand();
+      startSlotsBurst();
+      if ((state.slots||{}).vfx !== false){
+        el.slotsWrap.classList.add('shake'); setTimeout(()=>el.slotsWrap.classList.remove('shake'), 260);
+        el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show');
+      }
 
       // emit overlay-confirmed result
       try {
@@ -806,6 +1000,8 @@ function stopSlots(){
   markCenterLanded();
   // And focus the centered cells
   el.slotsWrap.classList.add('focused');
+  // Landing SFX + VFX even on forced stop
+  playSlotLand(); startSlotsBurst(); if ((state.slots||{}).vfx !== false){ el.slotsWrap.classList.add('shake'); setTimeout(()=>el.slotsWrap.classList.remove('shake'), 260); el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show'); }
 }
 
 
@@ -853,6 +1049,12 @@ function stopSlots(){
   renderFull();
   if(!raf) raf=requestAnimationFrame(tick);
   connect();
+  // Audio gate button
+  if (el.audioGateBtn) el.audioGateBtn.addEventListener('click', ()=>{ ensureAC(); updateAudioGateVisibility(); });
+  // Passive resume hooks to satisfy autoplay policies in most browsers
+  window.addEventListener('pointerdown', ()=>{ ensureAC(); }, { once:true });
+  window.addEventListener('keydown',     ()=>{ ensureAC(); }, { once:true });
+  document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible') ensureAC(); }, { once:true });
 })();
 </script>
 </body>

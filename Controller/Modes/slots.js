@@ -18,6 +18,63 @@ export function init(ctx){
       </div>
       <div class="card" style="margin-bottom:12px">
         <div class="field" style="flex-wrap:wrap; gap:10px">
+          <label for="sl-style">Style</label>
+          <select id="sl-style" class="select">
+            <option value="classic">Classic (Purple/Cyan)</option>
+            <option value="neon">Neon (Pink/Teal)</option>
+            <option value="gold">Gold (Warm)</option>
+            <option value="cyber">Cyber (Blue/Cyan)</option>
+            <option value="crimson">Crimson (Red/Orange)</option>
+          </select>
+          <div class="hint">Live color preset for the slots overlay.</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="field" style="flex-wrap:wrap; gap:10px">
+          <label for="sl-frame">Frame</label>
+          <select id="sl-frame" class="select">
+            <option value="rounded">Rounded</option>
+            <option value="square">Square</option>
+            <option value="pill">Pill</option>
+            <option value="cut">Cut Corners</option>
+          </select>
+          <div class="hint">Shape of the reel frame. Useful for different overlay aesthetics.</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="field" style="flex-wrap:wrap; gap:10px">
+          <label for="sl-framefx">Frame FX</label>
+          <select id="sl-framefx" class="select">
+            <option value="standard">Standard</option>
+            <option value="nohighlight">No Highlight Bar</option>
+            <option value="curved">Curved Glass</option>
+            <option value="tilt">Tilted</option>
+            <option value="minimal">Minimal</option>
+            <option value="glow">Strong Glow</option>
+          </select>
+          <div class="hint">Aggressive presentation tweaks (hide center bar, curved glass, tilt, etc.).</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="field" style="flex-wrap:wrap; gap:12px; align-items:center">
+          <label style="display:inline-flex; align-items:center; gap:8px">
+            <input type="checkbox" id="sl-sfx" checked> Enable SFX
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:8px">
+            <input type="checkbox" id="sl-vfx" checked> Enable VFX
+          </label>
+          <label for="sl-vignette">Vignette</label>
+          <select id="sl-vignette" class="select">
+            <option value="off">Off</option>
+            <option value="normal">Normal</option>
+            <option value="reverse">Reverse</option>
+            <option value="both">Both (Normal + Glow)</option>
+          </select>
+          <div class="hint">Spin-only vignette and effects. Toggle SFX/VFX if needed.</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="field" style="flex-wrap:wrap; gap:10px">
           <label>Spin Duration (s)</label>
           <input id="sl-duration" class="input" type="number" step="0.1" min="0.5" max="10" value="2.5">
 
@@ -59,13 +116,19 @@ export function init(ctx){
   }
 
   function ensureSlotsState(){
-    if (!state.slots) state.slots = { duration: 2.5, stagger: 0.5, invert: false, legends: [], weapons: [], view: 'all' };
+  if (!state.slots) state.slots = { duration: 2.5, stagger: 0.5, invert: false, legends: [], weapons: [], view: 'all', style: 'classic', frame: 'rounded', frameFx: 'standard', sfx: true, vfx: true, vignette: 'normal' };
     if (typeof state.slots.duration !== 'number') state.slots.duration = 2.5;
     if (typeof state.slots.stagger  !== 'number') state.slots.stagger  = 0.5;
     if (typeof state.slots.invert   !== 'boolean') state.slots.invert   = false;
     if (!Array.isArray(state.slots.legends)) state.slots.legends = [];
     if (!Array.isArray(state.slots.weapons)) state.slots.weapons = [];
     if (typeof state.slots.view !== 'string') state.slots.view = 'all';
+    if (typeof state.slots.style !== 'string') state.slots.style = 'classic';
+  if (typeof state.slots.frame !== 'string') state.slots.frame = 'rounded';
+  if (typeof state.slots.frameFx !== 'string') state.slots.frameFx = 'standard';
+  if (typeof state.slots.sfx !== 'boolean') state.slots.sfx = true;
+  if (typeof state.slots.vfx !== 'boolean') state.slots.vfx = true;
+  if (typeof state.slots.vignette !== 'string') state.slots.vignette = 'normal';
   }
 
   async function fetchIntoState(){
@@ -190,6 +253,12 @@ function renderHistory(){
     const slDuration = $('#sl-duration');
     const slStagger  = $('#sl-stagger');
     const slInvert   = $('#sl-invert');
+  const slStyle    = $('#sl-style');
+  const slFrame    = $('#sl-frame');
+  const slFrameFx  = $('#sl-framefx');
+  const slSfx      = $('#sl-sfx');
+  const slVfx      = $('#sl-vfx');
+  const slVignette = $('#sl-vignette');
     const slRescan   = $('#sl-rescan');
     const slSpin     = $('#sl-spin');
     const slStop     = $('#sl-stop');
@@ -204,6 +273,12 @@ function renderHistory(){
     slDuration.value = state.slots.duration;
     slStagger.value  = state.slots.stagger;
     slInvert.checked = !!state.slots.invert;
+  slStyle.value    = state.slots.style || 'classic';
+  slFrame.value    = state.slots.frame || 'rounded';
+  slFrameFx.value  = state.slots.frameFx || 'standard';
+  slSfx.checked    = state.slots.sfx !== false;
+  slVfx.checked    = state.slots.vfx !== false;
+  slVignette.value = state.slots.vignette || 'normal';
 
     // NEW: toggle visibility of pick lists based on view mode
     const slLegendsCard = slLegends.closest('.card');
@@ -235,6 +310,30 @@ function renderHistory(){
     });
     slInvert.addEventListener('change', ()=>{
       state.slots.invert = !!slInvert.checked;
+      persist(); sendState();
+    });
+    slStyle.addEventListener('change', ()=>{
+      state.slots.style = slStyle.value || 'classic';
+      persist(); sendState();
+    });
+    slFrame.addEventListener('change', ()=>{
+      state.slots.frame = slFrame.value || 'rounded';
+      persist(); sendState();
+    });
+    slFrameFx.addEventListener('change', ()=>{
+      state.slots.frameFx = slFrameFx.value || 'standard';
+      persist(); sendState();
+    });
+    slSfx.addEventListener('change', ()=>{
+      state.slots.sfx = !!slSfx.checked;
+      persist(); sendState();
+    });
+    slVfx.addEventListener('change', ()=>{
+      state.slots.vfx = !!slVfx.checked;
+      persist(); sendState();
+    });
+    slVignette.addEventListener('change', ()=>{
+      state.slots.vignette = slVignette.value || 'off';
       persist(); sendState();
     });
 
