@@ -7,7 +7,11 @@
 <style>
   :root{
     --scale: 1;
-    --frame: #ffffff66;
+  --frame: #ffffff66;
+  --frame-color: #ffffff;
+  --frame-alpha: 0.16; /* opacity used for slot frame (border) */
+  --panel-alpha: 0.16; /* opacity used for inner panel/white overlay */
+    --glow-alpha: 0.36;  /* opacity used for glow accents */
     --inset-top: 36px; --inset-right: 48px; --inset-bottom: 36px; --inset-left: 48px;
     --pill: rgba(0,0,0,0.45); --pill-b: #ffffff24; --text: #fff; --muted: #ffffffa6;
     --shadow: 0 12px 30px rgba(0,0,0,.45);
@@ -15,10 +19,15 @@
     --wrap-gap-list: 28px; --wrap-gap-wheel: 12px;
     --list-gap: 0px; --pill-pad-y: 8px; --pill-pad-x: 14px;
     --current-extra-gap: 8px; --pull: 0px;
-    --accent1: #7c3aed; --accent2: #22d3ee;            /* default (classic) */
-    --accent1-soft: rgba(124,58,237,.36);
-    --accent2-soft: rgba(34,211,238,.36);
-    --accent-ring: rgba(124,58,237,.35);
+  --accent1: #7c3aed; --accent2: #22d3ee;            /* default (classic) */
+  --accent1-soft: rgba(124,58,237,.36);
+  --accent2-soft: rgba(34,211,238,.36);
+  --accent-ring: rgba(124,58,237,.35);
+  --panel-color: #ffffff;
+  --panel-color-r: 255; --panel-color-g: 255; --panel-color-b: 255;
+    --vignette-alpha: 1;
+    --center-alpha: 0.55;
+    --spin-alpha: 0.7;
     --titleWheelSize: 64px;
   }
 
@@ -77,12 +86,17 @@
 .reel {
   width:200px; height:220px; overflow:hidden; position:relative;
   border-radius:16px; border:1px solid #ffffff2a;
+  /* Use the solid accent (--accent1) as the base so the colored area remains visible.
+     The white fill stops are controlled by --frame-alpha so they can fade independently. */
   background:
-    radial-gradient(120% 100% at 50% 0%, var(--accent1-soft), rgb(255, 255, 255) 90%),
-    linear-gradient(180deg, rgb(255, 255, 255), rgb(255, 255, 255));
+    /* blend accent1 + accent2 then fade into the panel color so accent2 is visible */
+    radial-gradient(120% 100% at 50% 0%, var(--accent1), var(--accent2) 50%, rgba(var(--panel-color-r,255), var(--panel-color-g,255), var(--panel-color-b,255), var(--panel-alpha)) 90%),
+    linear-gradient(180deg, rgba(var(--panel-color-r,255), var(--panel-color-g,255), var(--panel-color-b,255), var(--panel-alpha)), rgba(var(--panel-color-r,255), var(--panel-color-g,255), var(--panel-color-b,255), var(--panel-alpha)));
   box-shadow:
     0 14px 36px rgba(0,0,0,.45),
     inset 0 0 0 1px rgba(255,255,255,.06);
+  /* slot frame/border color is driven by --frame-color + --frame-alpha */
+  border: 1px solid rgba(var(--frame-color-r,255), var(--frame-color-g,255), var(--frame-color-b,255), var(--frame-alpha));
 }
 
 .reel::before{ /* subtle bezel */
@@ -96,9 +110,9 @@
   top: calc(50% - 55px); height:110px;  /* same as CELL_H */
   border-radius:12px;
   box-shadow:
-    inset 0 0 0 2px rgba(255,255,255,.16),
-    inset 0 0 24px var(--accent2-soft),
-    0 8px 22px rgba(0,0,0,.38);
+  inset 0 0 0 2px rgba(255,255,255, var(--panel-alpha)),
+  inset 0 0 24px var(--accent2-soft),
+  0 8px 22px rgba(0,0,0,.38);
   pointer-events:none;
   transition: opacity .2s ease, height .2s ease;
 }
@@ -122,15 +136,18 @@
   /* Aggressive Frame FX presets (applied via body class) */
   /* Standard: default behavior (no extra rules required) */
   body.framefx-nohighlight .reel::after{ display:none; }
+  /* Minimal frame FX: keep a subtle slot frame border (uses selected frame color) but drop other chrome */
   body.framefx-minimal .reel{
-    border:none; box-shadow:none; background:transparent;
+    border: 1px solid rgba(var(--frame-color-r,255), var(--frame-color-g,255), var(--frame-color-b,255), var(--frame-alpha));
+    box-shadow:none; background:transparent;
   }
   body.framefx-minimal .reel::before{ display:none; }
   body.framefx-minimal .reel::after{ display:none; }
   body.framefx-glow .reel{
-    border:1px solid transparent;
+    border: 1px solid rgba(var(--frame-color-r,255), var(--frame-color-g,255), var(--frame-color-b,255), var(--frame-alpha));
     box-shadow: 0 0 0 2px rgba(255,255,255,.12), 0 0 36px 10px var(--accent1-soft), inset 0 0 0 1px rgba(255,255,255,.06);
-    background: radial-gradient(120% 100% at 50% 0%, var(--accent1-soft), rgba(255,255,255,0.85) 85%);
+    /* Blend both accents into the colored base and then fade into the panel color so accent2 is visible */
+    background: radial-gradient(120% 100% at 50% 0%, var(--accent1), var(--accent2) 55%, rgba(var(--panel-color-r,255),var(--panel-color-g,255),var(--panel-color-b,255), var(--panel-alpha)) 85%);
   }
   body.framefx-glow .reel::after{
     box-shadow: inset 0 0 0 2px rgba(255,255,255,.25), inset 0 0 28px var(--accent2-soft), 0 8px 22px rgba(0,0,0,.38);
@@ -199,17 +216,17 @@
 /* ---- Overlay VFX: vignette, center glow, spin glow, pulse, shake ---- */
 /* Backdrop vignette behind content so it doesn't obscure slots */
 .vfxVignette{ position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease; z-index:1; mix-blend-mode:multiply; }
-.vfxVignette.normal{ background: radial-gradient(100% 100% at 50% 50%, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%); }
-body.vfx-on .vfxVignette.show{ opacity:1; }
+  .vfxVignette.normal{ background: radial-gradient(100% 100% at 50% 50%, rgba(0,0,0,0) 45%, rgba(0,0,0,.55) 100%); }
+  body.vfx-on .vfxVignette.show{ opacity: var(--vignette-alpha); }
 
 /* Center glow used for reverse effect (bright center without covering icons) */
 .vfxCenterGlow{ position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease; z-index:1; mix-blend-mode:screen; }
 .vfxCenterGlow::before{ content:''; position:absolute; inset:0; background: radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.55), rgba(255,255,255,0) 60%); filter: blur(12px); }
-body.vfx-on .vfxCenterGlow.show{ opacity:1; }
+body.vfx-on .vfxCenterGlow.show{ opacity: var(--center-alpha); }
 
 .spinGlow{ position:absolute; left:0; right:0; top:0; height:120px; pointer-events:none; opacity:0; transition: opacity .25s ease; mix-blend-mode:screen; z-index:4; }
 .spinGlow::before{ content:''; position:absolute; inset:0; background: radial-gradient(80% 60% at 50% 0%, var(--accent2-soft), rgba(255,255,255,0)); filter: blur(12px); opacity:.7; }
-body.vfx-on .spinGlow.show{ opacity:1; }
+body.vfx-on .spinGlow.show{ opacity: var(--spin-alpha); }
 
 @keyframes reelPulse {
   0% { box-shadow: 0 14px 36px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.06); }
@@ -344,8 +361,14 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
   // Show/hide reels and labels based on controller's view mode
   function applySlotsViewMask(){
     const view = (state.slots && state.slots.view) || 'all';
-    const showLegend  = view !== 'weapons';
-    const showWeapons = view !== 'character';
+  // view modes:
+  //  - 'all' => legend + weapon + weapon
+  //  - 'weapons' => hide legend, show both weapons
+  //  - 'one-weapon' => hide legend, show only first weapon (center), hide third
+  //  - 'character' => show legend only, hide weapons
+  const showLegend  = (view === 'all' || view === 'character');
+  const showWeapons = (view === 'all' || view === 'weapons' || view === 'one-weapon');
+  const showThird   = (view === 'all' || view === 'weapons');
 
     // reel containers are the parent of strips
     const r0 = el.reel0 && el.reel0.parentElement;
@@ -353,13 +376,13 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     const r2 = el.reel2 && el.reel2.parentElement;
 
     if (r0) r0.style.display = showLegend  ? '' : 'none';
-    if (r1) r1.style.display = showWeapons ? '' : 'none';
-    if (r2) r2.style.display = showWeapons ? '' : 'none';
+  if (r1) r1.style.display = showWeapons ? '' : 'none';
+  if (r2) r2.style.display = (showWeapons && showThird) ? '' : 'none';
 
     // labels
     if (el.slotsLabel0) el.slotsLabel0.style.display = showLegend  ? '' : 'none';
     if (el.slotsLabel1) el.slotsLabel1.style.display = showWeapons ? '' : 'none';
-    if (el.slotsLabel2) el.slotsLabel2.style.display = showWeapons ? '' : 'none';
+    if (el.slotsLabel2) el.slotsLabel2.style.display = (showWeapons && showThird) ? '' : 'none';
   }
 
   const css = (k,v)=>document.documentElement.style.setProperty(k,v);
@@ -385,6 +408,105 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     const classes = ['style-classic','style-neon','style-gold','style-cyber','style-crimson'];
     classes.forEach(c=>document.body.classList.remove(c));
     document.body.classList.add('style-' + (s in {classic:1,neon:1,gold:1,cyber:1,crimson:1} ? s : 'classic'));
+  }
+  function applyFrameAlphaAndGlow(){
+    const s = state.slots || {};
+    const fa = (typeof s.frameAlpha === 'number') ? clamp(s.frameAlpha, 0, 1) : 0.16;
+    const ga = (typeof s.glowAlpha === 'number')  ? clamp(s.glowAlpha, 0, 1)  : 0.36;
+  // custom accent colors (accept hex strings like #rrggbb)
+    if (typeof s.accent1 === 'string' && s.accent1.trim()) document.documentElement.style.setProperty('--accent1', s.accent1.trim());
+    if (typeof s.accent2 === 'string' && s.accent2.trim()) document.documentElement.style.setProperty('--accent2', s.accent2.trim());
+  if (typeof s.frameColor === 'string' && s.frameColor.trim()) document.documentElement.style.setProperty('--frame-color', s.frameColor.trim());
+  if (typeof s.panelColor === 'string' && s.panelColor.trim()) document.documentElement.style.setProperty('--panel-color', s.panelColor.trim());
+  // effect alphas
+  if (typeof s.vignetteAlpha === 'number') document.documentElement.style.setProperty('--vignette-alpha', String(clamp(s.vignetteAlpha,0,1)));
+  if (typeof s.centerAlpha === 'number') document.documentElement.style.setProperty('--center-alpha', String(clamp(s.centerAlpha,0,1)));
+  if (typeof s.spinAlpha === 'number') document.documentElement.style.setProperty('--spin-alpha', String(clamp(s.spinAlpha,0,1)));
+  // frameAlpha maps to the slot frame (border) opacity; panelAlpha controls the inner white overlay
+  document.documentElement.style.setProperty('--frame-alpha', String(fa));
+  // maintain legacy behaviour: if controller provides panelAlpha use it, otherwise mirror frameAlpha for compatibility
+  if (typeof s.panelAlpha === 'number') document.documentElement.style.setProperty('--panel-alpha', String(clamp(s.panelAlpha,0,1)));
+  else document.documentElement.style.setProperty('--panel-alpha', String(fa));
+  document.documentElement.style.setProperty('--glow-alpha', String(ga));
+
+    // Also update the "soft" accent variables so any CSS using --accentX-soft reflects the glowAlpha.
+    // Parse --accent1 / --accent2 into RGB then set --accent1-soft / --accent2-soft to rgba(r,g,b,ga)
+  const docEl = document.documentElement;
+  // style presets set --accent* on the body class; read from body first, fall back to root
+  const csBody = getComputedStyle(document.body);
+  const csRoot = getComputedStyle(docEl);
+  const a1 = (csBody.getPropertyValue('--accent1') || csRoot.getPropertyValue('--accent1') || '').trim();
+  const a2 = (csBody.getPropertyValue('--accent2') || csRoot.getPropertyValue('--accent2') || '').trim();
+
+    function parseToRGB(s){
+      if (!s) return null;
+      s = s.replace(/"|'/g,'').trim();
+      // rgb/rgba
+      const m = s.match(/rgba?\s*\(([^)]+)\)/i);
+      if (m){
+        const parts = m[1].split(',').map(p=>p.trim());
+        return parts.length>=3 ? [parseInt(parts[0],10)||0, parseInt(parts[1],10)||0, parseInt(parts[2],10)||0] : null;
+      }
+      // hex #rrggbb or #rgb
+      const hex = s.replace(/^#/,'');
+      if (/^[0-9a-fA-F]{6}$/.test(hex)){
+        return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
+      }
+      if (/^[0-9a-fA-F]{3}$/.test(hex)){
+        return [parseInt(hex[0]+hex[0],16), parseInt(hex[1]+hex[1],16), parseInt(hex[2]+hex[2],16)];
+      }
+      return null;
+    }
+
+    const rgb1 = parseToRGB(a1);
+    const rgb2 = parseToRGB(a2);
+    // If parsing the CSS value failed (for example when the value uses another var or complex expression),
+    // attempt to resolve the computed color by using a temporary element with color:var(--accentX) and reading
+    // getComputedStyle on it. This ensures we get a usable rgb(...) string even for complex CSS values.
+    function resolveComputedRGB(varName, rawValue){
+      // try parsing raw value first
+      const p = parseToRGB(rawValue);
+      if (p) return p;
+      try{
+        const tmp = document.createElement('div');
+        tmp.style.position = 'absolute'; tmp.style.visibility = 'hidden'; tmp.style.pointerEvents='none';
+        tmp.style.color = `var(${varName})`;
+        document.body.appendChild(tmp);
+        const resolved = getComputedStyle(tmp).color || '';
+        document.body.removeChild(tmp);
+        return parseToRGB(resolved) || null;
+      }catch(e){ return null; }
+    }
+
+    const res1 = resolveComputedRGB('--accent1', a1);
+    const res2 = resolveComputedRGB('--accent2', a2);
+    const fallbackRGB = [255,255,255];
+    const use1 = res1 || rgb1 || fallbackRGB;
+    const use2 = res2 || rgb2 || fallbackRGB;
+    docEl.style.setProperty('--accent1-soft', `rgba(${use1[0]}, ${use1[1]}, ${use1[2]}, ${ga})`);
+    docEl.style.setProperty('--accent2-soft', `rgba(${use2[0]}, ${use2[1]}, ${use2[2]}, ${ga})`);
+    // parse frame-color (#rrggbb) into numeric CSS vars for rgba usage
+    try{
+      const fc = getComputedStyle(docEl).getPropertyValue('--frame-color').trim() || '#ffffff';
+      const hex = fc.replace(/^#/, '');
+      if (/^[0-9a-fA-F]{6}$/.test(hex)){
+        const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+        docEl.style.setProperty('--frame-color-r', String(r));
+        docEl.style.setProperty('--frame-color-g', String(g));
+        docEl.style.setProperty('--frame-color-b', String(b));
+      }
+    }catch(e){}
+    // parse panel-color (#rrggbb) into numeric CSS vars for rgba usage (used for inner panel fills)
+    try{
+      const pc = getComputedStyle(docEl).getPropertyValue('--panel-color').trim() || '#ffffff';
+      const hex2 = pc.replace(/^#/, '');
+      if (/^[0-9a-fA-F]{6}$/.test(hex2)){
+        const r2 = parseInt(hex2.slice(0,2),16), g2 = parseInt(hex2.slice(2,4),16), b2 = parseInt(hex2.slice(4,6),16);
+        docEl.style.setProperty('--panel-color-r', String(r2));
+        docEl.style.setProperty('--panel-color-g', String(g2));
+        docEl.style.setProperty('--panel-color-b', String(b2));
+      }
+    }catch(e){}
   }
   function applyFramePreset(){
     const f = (state.slots && state.slots.frame) || 'rounded';
@@ -498,9 +620,14 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     ctx.restore();
   }
   function drawWheel(){
-    ctx = sizeCanvasToDisplay(el.wheelCanvas, 640);
-    const W=el.wheelCanvas.clientWidth, H=el.wheelCanvas.clientHeight;
-    const cx=W/2, cy=H/2, r=Math.min(cx,cy)-8; ctx.clearRect(0,0,W,H);
+    try {
+      ctx = sizeCanvasToDisplay(el.wheelCanvas, 640);
+      const W=el.wheelCanvas.clientWidth, H=el.wheelCanvas.clientHeight;
+      const cx=W/2, cy=H/2;
+      const r=Math.min(cx,cy)-8;
+      // guard against invalid radius (can happen if canvas is collapsed)
+      if (r <= 0) { ctx.clearRect(0,0,W,H); return; }
+      ctx.clearRect(0,0,W,H);
     const n=Math.max(1,state.items.length), step=(Math.PI*2)/n, colors=buildColors(n);
     for(let i=0;i<n;i++){
       const a0=angle+i*step, a1=a0+step;
@@ -521,6 +648,9 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     }
     const titlePx = clamp(Math.round((el.wheelCanvas.clientWidth||480)/18), 32, 96);
     css('--titleWheelSize', `${titlePx}px`);
+  } catch (err) {
+    console.warn('drawWheel error', err);
+  }
   }
 
   // Audio
@@ -634,12 +764,12 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
 
 
   function renderFull(){
-  applyInsetsFromState(); applyAlignment(); applyScale(); applyOrientation(); applyProgressive(); applyStylePreset(); applyFramePreset(); applyFrameFxPreset(); applySfxVfx(); toggleViews();
-    if (state.mode==='list') renderList(); else drawWheel();
+  applyInsetsFromState(); applyAlignment(); applyScale(); applyOrientation(); applyProgressive(); applyStylePreset(); applyFramePreset(); applyFrameFxPreset(); applySfxVfx(); applyFrameAlphaAndGlow(); toggleViews();
+    if (state.mode==='list') renderList(); else { try { drawWheel(); } catch(e){ console.warn('drawWheel failed', e); } }
     if (!completed && allDone()) completeChallenge(); if (completed && !allDone()) clearCompletion();
   }
   function renderLight(){
-  applyAlignment(); applyOrientation(); applyProgressive(); applyStylePreset(); applyFramePreset(); applyFrameFxPreset(); applySfxVfx(); toggleViews();
+  applyAlignment(); applyOrientation(); applyProgressive(); applyStylePreset(); applyFramePreset(); applyFrameFxPreset(); applySfxVfx(); applyFrameAlphaAndGlow(); toggleViews();
     if (state.mode==='list') patchCurrentAndDone(); else drawWheel();
     if (!completed && allDone()) completeChallenge();
   }
@@ -1015,7 +1145,9 @@ function stopSlots(){
     try{ ws=new WebSocket(wsUrl); }catch{ return; }
     ws.onopen=()=>{ ws.send(JSON.stringify({type:'register',role:'overlay',channel})); ws.send(JSON.stringify({type:'request-state',channel})); };
     ws.onmessage=(ev)=>{ const msg=safeParse(ev.data); if(!msg) return;
-      if (msg.type==='state'){ Object.assign(state, msg.payload||{}); renderFull(); maybeComplete(); }
+      if (msg.type==='state'){ 
+        try{ console.debug('overlay received state', msg.payload && msg.payload.slots ? {frameAlpha: msg.payload.slots.frameAlpha, glowAlpha: msg.payload.slots.glowAlpha, view: msg.payload.slots.view} : {}); }catch(e){}
+        Object.assign(state, msg.payload||{}); renderFull(); maybeComplete(); }
       else if (msg.type==='cmd'){ handleCmd(msg); }
     };
     ws.onclose=()=>{ setTimeout(connect, backoff); backoff=Math.min(backoff*1.6,5000); };

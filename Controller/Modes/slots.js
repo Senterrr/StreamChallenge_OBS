@@ -1,5 +1,6 @@
 // controller/modes/slots.js
 const MANIFEST_URL = '/slots-manifest';
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
 
 export function init(ctx){
   const { root, state, setMode, persist, sendState, sendCmd } = ctx;
@@ -10,40 +11,43 @@ export function init(ctx){
     return `
       <div class="title">Slots Mode (Apex)</div>
       <div class="desc" style="margin-bottom:12px">
-        <div class="field" style="flex-direction:column; align-items:stretch; gap:6px">
-          <button class="toolbtn" id="sl-weapons-only">Weapons Only</button>
-          <button class="toolbtn" id="sl-character-only">Character Only</button>
-          <button class="toolbtn" id="sl-include-all">Include All</button>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:12px">
-        <div class="field" style="flex-wrap:wrap; gap:10px">
-          <label for="sl-style">Style</label>
-          <select id="sl-style" class="select">
-            <option value="classic">Classic (Purple/Cyan)</option>
-            <option value="neon">Neon (Pink/Teal)</option>
-            <option value="gold">Gold (Warm)</option>
-            <option value="cyber">Cyber (Blue/Cyan)</option>
-            <option value="crimson">Crimson (Red/Orange)</option>
+        <div class="field" style="flex-direction:row; align-items:center; gap:8px">
+          <label for="sl-view">View</label>
+          <select id="sl-view" class="select">
+            <option value="all">Include All</option>
+            <option value="weapons">Weapons Only</option>
+            <option value="one-weapon">1 Weapon Only</option>
+            <option value="character">Character Only</option>
           </select>
-          <div class="hint">Live color preset for the slots overlay.</div>
+          <div class="hint">Choose which reels are visible.</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="field" style="flex-wrap:wrap; gap:12px; align-items:center">
+          <label for="sl-accent1">Accent 1</label>
+          <input id="sl-accent1" type="color" class="input" value="#7c3aed">
+          <label for="sl-accent2">Accent 2</label>
+          <input id="sl-accent2" type="color" class="input" value="#22d3ee">
+          <label for="sl-panel-color">Panel Color</label>
+          <input id="sl-panel-color" type="color" class="input" value="#ffffff">
+          <div class="hint">Pick two base colors used for reel accents and glows.</div>
         </div>
       </div>
       <div class="card" style="margin-bottom:12px">
         <div class="field" style="flex-wrap:wrap; gap:10px">
-          <label for="sl-frame">Frame</label>
+          <label for="sl-frame">Slot Frame Shape</label>
           <select id="sl-frame" class="select">
             <option value="rounded">Rounded</option>
             <option value="square">Square</option>
             <option value="pill">Pill</option>
             <option value="cut">Cut Corners</option>
           </select>
-          <div class="hint">Shape of the reel frame. Useful for different overlay aesthetics.</div>
+          <div class="hint">Shape of the slot frame (cell border). Useful for different overlay aesthetics.</div>
         </div>
       </div>
       <div class="card" style="margin-bottom:12px">
         <div class="field" style="flex-wrap:wrap; gap:10px">
-          <label for="sl-framefx">Frame FX</label>
+          <label for="sl-framefx">Slot Frame FX</label>
           <select id="sl-framefx" class="select">
             <option value="standard">Standard</option>
             <option value="nohighlight">No Highlight Bar</option>
@@ -52,7 +56,47 @@ export function init(ctx){
             <option value="minimal">Minimal</option>
             <option value="glow">Strong Glow</option>
           </select>
-          <div class="hint">Aggressive presentation tweaks (hide center bar, curved glass, tilt, etc.).</div>
+            <div class="hint">Aggressive slot frame presentation tweaks (hide center bar, curved glass, tilt, etc.).</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="field" style="align-items:center; gap:12px">
+          <label for="sl-frame-color">Slot Frame Color</label>
+          <input id="sl-frame-color" type="color" class="input" value="#ffffff">
+          <div class="hint">Choose the slot frame (cell border) color for each reel panel.</div>
+        </div>
+        <div class="field" style="align-items:center; gap:12px; margin-top:8px">
+          <label for="sl-frame-alpha" style="min-width:140px">Slot Frame Transparency</label>
+          <input id="sl-frame-alpha" type="range" min="0" max="100" step="1" class="input" value="16" style="flex:1">
+          <div id="sl-frame-alpha-val" class="hint" style="min-width:44px; text-align:right">16%</div>
+        </div>
+        <div class="field" style="align-items:center; gap:12px; margin-top:6px">
+          <label for="sl-glow-alpha" style="min-width:140px">Glow Transparency</label>
+          <input id="sl-glow-alpha" type="range" min="0" max="100" step="1" class="input" value="36" style="flex:1">
+          <div id="sl-glow-alpha-val" class="hint" style="min-width:44px; text-align:right">36%</div>
+        </div>
+        <div class="field" style="align-items:center; gap:12px; margin-top:12px">
+          <label for="sl-vignette-alpha" style="min-width:140px">Vignette</label>
+          <input id="sl-vignette-alpha" type="range" min="0" max="100" step="1" class="input" value="100" style="flex:1">
+          <div id="sl-vignette-alpha-val" class="hint" style="min-width:44px; text-align:right">100%</div>
+        </div>
+        <div class="field" style="align-items:center; gap:12px; margin-top:6px">
+          <label for="sl-center-alpha" style="min-width:140px">Center Glow</label>
+          <input id="sl-center-alpha" type="range" min="0" max="100" step="1" class="input" value="55" style="flex:1">
+          <div id="sl-center-alpha-val" class="hint" style="min-width:44px; text-align:right">55%</div>
+        </div>
+        <div class="field" style="align-items:center; gap:12px; margin-top:6px">
+          <label for="sl-spin-alpha" style="min-width:140px">Spin Glow</label>
+          <input id="sl-spin-alpha" type="range" min="0" max="100" step="1" class="input" value="70" style="flex:1">
+          <div id="sl-spin-alpha-val" class="hint" style="min-width:44px; text-align:right">70%</div>
+        </div>
+        <div class="hint" style="margin-top:8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div id="sl-preview" style="width:160px;height:80px;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;background:#0e0e11;border:1px solid rgba(255,255,255,0.06)">
+              <div id="sl-preview-frame" style="width:120px;height:56px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"></div>
+            </div>
+            <div style="flex:1">Preview (local)</div>
+          </div>
         </div>
       </div>
       <div class="card" style="margin-bottom:12px">
@@ -129,6 +173,18 @@ export function init(ctx){
   if (typeof state.slots.sfx !== 'boolean') state.slots.sfx = true;
   if (typeof state.slots.vfx !== 'boolean') state.slots.vfx = true;
   if (typeof state.slots.vignette !== 'string') state.slots.vignette = 'normal';
+  // transparency controls (0.0 - 1.0)
+  if (typeof state.slots.frameAlpha !== 'number') state.slots.frameAlpha = 0.16; // used for slot frame (cell border) opacity
+  if (typeof state.slots.glowAlpha  !== 'number') state.slots.glowAlpha  = 0.36; // used for accent glows
+  // custom colors
+  if (typeof state.slots.accent1 !== 'string') state.slots.accent1 = '#7c3aed';
+  if (typeof state.slots.accent2 !== 'string') state.slots.accent2 = '#22d3ee';
+  if (typeof state.slots.frameColor !== 'string') state.slots.frameColor = '#ffffff';
+  if (typeof state.slots.panelColor !== 'string') state.slots.panelColor = '#ffffff';
+  // effect alphas
+  if (typeof state.slots.vignetteAlpha !== 'number') state.slots.vignetteAlpha = 1.0;
+  if (typeof state.slots.centerAlpha !== 'number') state.slots.centerAlpha = 0.55;
+  if (typeof state.slots.spinAlpha !== 'number') state.slots.spinAlpha = 0.7;
   }
 
   async function fetchIntoState(){
@@ -253,46 +309,70 @@ function renderHistory(){
     const slDuration = $('#sl-duration');
     const slStagger  = $('#sl-stagger');
     const slInvert   = $('#sl-invert');
-  const slStyle    = $('#sl-style');
+  // slStyle removed: using custom color pickers instead
   const slFrame    = $('#sl-frame');
   const slFrameFx  = $('#sl-framefx');
   const slSfx      = $('#sl-sfx');
   const slVfx      = $('#sl-vfx');
   const slVignette = $('#sl-vignette');
+  const slFrameAlpha = $('#sl-frame-alpha');
+  const slGlowAlpha  = $('#sl-glow-alpha');
+  const slFrameAlphaVal = $('#sl-frame-alpha-val');
+  const slGlowAlphaVal  = $('#sl-glow-alpha-val');
     const slRescan   = $('#sl-rescan');
     const slSpin     = $('#sl-spin');
     const slStop     = $('#sl-stop');
     const slLegends  = $('#sl-legends');
     const slWeapons  = $('#sl-weapons');
+  const slPreviewFrame = $('#sl-preview-frame');
+  const slFrameColor = $('#sl-frame-color');
+  const slPanelColor = $('#sl-panel-color');
+  const slAccent1 = $('#sl-accent1');
+  const slAccent2 = $('#sl-accent2');
+  const slVignetteAlpha = $('#sl-vignette-alpha');
+  const slCenterAlpha = $('#sl-center-alpha');
+  const slSpinAlpha = $('#sl-spin-alpha');
     // NEW: view mode buttons
-    const slWeaponsOnly   = $('#sl-weapons-only');
-    const slCharacterOnly = $('#sl-character-only');
-    const slIncludeAll    = $('#sl-include-all');
+  const slViewSelect     = $('#sl-view');
 
     ensureSlotsState();
     slDuration.value = state.slots.duration;
     slStagger.value  = state.slots.stagger;
     slInvert.checked = !!state.slots.invert;
-  slStyle.value    = state.slots.style || 'classic';
+  // slStyle removed
+  // custom color picks
+  slAccent1.value  = state.slots.accent1 || '#7c3aed';
+  slAccent2.value  = state.slots.accent2 || '#22d3ee';
+  slFrameColor.value = state.slots.frameColor || '#ffffff';
+  slPanelColor && (slPanelColor.value = state.slots.panelColor || '#ffffff');
   slFrame.value    = state.slots.frame || 'rounded';
   slFrameFx.value  = state.slots.frameFx || 'standard';
   slSfx.checked    = state.slots.sfx !== false;
   slVfx.checked    = state.slots.vfx !== false;
   slVignette.value = state.slots.vignette || 'normal';
+  // transparency (UI uses 0..100 percent; state uses 0..1)
+  const framePct = (typeof state.slots.frameAlpha === 'number') ? Math.round(state.slots.frameAlpha * 100) : 16;
+  const glowPct  = (typeof state.slots.glowAlpha === 'number')  ? Math.round(state.slots.glowAlpha * 100)  : 36;
+  slFrameAlpha.value = framePct;
+  slGlowAlpha.value  = glowPct;
+  slFrameAlphaVal.textContent = framePct + '%';
+  slGlowAlphaVal.textContent  = glowPct + '%';
+  // effect alphas
+  slVignetteAlpha.value = Math.round((state.slots.vignetteAlpha||1)*100);
+  slCenterAlpha.value   = Math.round((state.slots.centerAlpha||0.55)*100);
+  slSpinAlpha.value     = Math.round((state.slots.spinAlpha||0.7)*100);
+  document.getElementById('sl-vignette-alpha-val').textContent = Math.round((state.slots.vignetteAlpha||1)*100) + '%';
+  document.getElementById('sl-center-alpha-val').textContent = Math.round((state.slots.centerAlpha||0.55)*100) + '%';
+  document.getElementById('sl-spin-alpha-val').textContent = Math.round((state.slots.spinAlpha||0.7)*100) + '%';
 
     // NEW: toggle visibility of pick lists based on view mode
     const slLegendsCard = slLegends.closest('.card');
     const slWeaponsCard = slWeapons.closest('.card');
     function applySlotsView(){
       const view = state.slots.view || 'all';
-      // weapons-only -> hide legends list; character-only -> hide weapons list
       slLegendsCard.style.display = (view === 'weapons') ? 'none' : '';
       slWeaponsCard.style.display = (view === 'character') ? 'none' : '';
-      // optional: reflect active button state
-      [slIncludeAll, slWeaponsOnly, slCharacterOnly].forEach(btn=>btn?.classList.remove('active'));
-      if (view==='all') slIncludeAll?.classList.add('active');
-      if (view==='weapons') slWeaponsOnly?.classList.add('active');
-      if (view==='character') slCharacterOnly?.classList.add('active');
+      if (slViewSelect) slViewSelect.value = view;
     }
 
     // events
@@ -312,10 +392,7 @@ function renderHistory(){
       state.slots.invert = !!slInvert.checked;
       persist(); sendState();
     });
-    slStyle.addEventListener('change', ()=>{
-      state.slots.style = slStyle.value || 'classic';
-      persist(); sendState();
-    });
+    // slStyle removed; styles are driven by custom color pickers now
     slFrame.addEventListener('change', ()=>{
       state.slots.frame = slFrame.value || 'rounded';
       persist(); sendState();
@@ -323,6 +400,95 @@ function renderHistory(){
     slFrameFx.addEventListener('change', ()=>{
       state.slots.frameFx = slFrameFx.value || 'standard';
       persist(); sendState();
+    });
+    slFrameAlpha.addEventListener('input', ()=>{
+      const pct = parseInt(slFrameAlpha.value, 10) || 0;
+      const norm = clamp(pct / 100, 0, 1);
+      state.slots.frameAlpha = norm;
+      slFrameAlphaVal.textContent = Math.round(norm * 100) + '%';
+      // update preview: slot frame border (inset) and inner panel fill
+      if (slPreviewFrame) {
+        const frameColor = slFrameColor.value || '#ffffff';
+        const panelColor = (slPanelColor && slPanelColor.value) ? slPanelColor.value : slFrameColor.value || '#ffffff';
+        slPreviewFrame.style.boxShadow = `0 0 ${8 + (slGlowAlpha.value/100)*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(frameColor.slice(1,3),16)},${parseInt(frameColor.slice(3,5),16)},${parseInt(frameColor.slice(5,7),16)},${norm})`;
+        // inner panel uses panelColor (mirror of frameAlpha in controller UI)
+        slPreviewFrame.style.background = `rgba(${parseInt(panelColor.slice(1,3),16)},${parseInt(panelColor.slice(3,5),16)},${parseInt(panelColor.slice(5,7),16)},${norm})`;
+      }
+      persist(); sendState();
+    });
+    slGlowAlpha.addEventListener('input', ()=>{
+      const pct = parseInt(slGlowAlpha.value, 10) || 0;
+      const norm = clamp(pct / 100, 0, 1);
+      state.slots.glowAlpha = norm;
+      slGlowAlphaVal.textContent = Math.round(norm * 100) + '%';
+      // update preview (simulate glow by applying box-shadow) while preserving slot frame inset
+      if (slPreviewFrame) {
+        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
+        const frameColor = slFrameColor.value || '#ffffff';
+        slPreviewFrame.style.boxShadow = `0 0 ${8 + norm*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(frameColor.slice(1,3),16)},${parseInt(frameColor.slice(3,5),16)},${parseInt(frameColor.slice(5,7),16)},${fNorm})`;
+      }
+      persist(); sendState();
+    });
+
+    // color pickers
+    slAccent1.addEventListener('input', ()=>{
+      state.slots.accent1 = slAccent1.value;
+      // live preview accent via border/glow (maintain slot frame inset color)
+      if (slPreviewFrame) {
+        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
+        const frameColor = slFrameColor.value || '#ffffff';
+        slPreviewFrame.style.boxShadow = `0 0 ${8 + (slGlowAlpha.value/100)*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(frameColor.slice(1,3),16)},${parseInt(frameColor.slice(3,5),16)},${parseInt(frameColor.slice(5,7),16)},${fNorm})`;
+      }
+      persist(); sendState();
+    });
+    slAccent2.addEventListener('input', ()=>{
+      state.slots.accent2 = slAccent2.value;
+      if (slPreviewFrame) {
+        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
+        const frameColor = slFrameColor.value || '#ffffff';
+        const panelColor = (slPanelColor && slPanelColor.value) ? slPanelColor.value : frameColor;
+        slPreviewFrame.style.boxShadow = `0 0 ${8 + (slGlowAlpha.value/100)*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(frameColor.slice(1,3),16)},${parseInt(frameColor.slice(3,5),16)},${parseInt(frameColor.slice(5,7),16)},${fNorm})`;
+        slPreviewFrame.style.background = `rgba(${parseInt(panelColor.slice(1,3),16)},${parseInt(panelColor.slice(3,5),16)},${parseInt(panelColor.slice(5,7),16)},${fNorm})`;
+      }
+      persist(); sendState();
+    });
+
+    // frame color (slot frame color)
+    slFrameColor.addEventListener('input', ()=>{
+      state.slots.frameColor = slFrameColor.value;
+      if (slPreviewFrame){
+        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
+        const fc = slFrameColor.value || '#ffffff';
+        const panelColor = (slPanelColor && slPanelColor.value) ? slPanelColor.value : fc;
+        slPreviewFrame.style.boxShadow = `0 0 ${8 + (slGlowAlpha.value/100)*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(fc.slice(1,3),16)},${parseInt(fc.slice(3,5),16)},${parseInt(fc.slice(5,7),16)},${fNorm})`;
+        slPreviewFrame.style.background = `rgba(${parseInt(panelColor.slice(1,3),16)},${parseInt(panelColor.slice(3,5),16)},${parseInt(panelColor.slice(5,7),16)},${fNorm})`;
+      }
+      persist(); sendState();
+    });
+
+    // panel color (inner panel) picker
+    if (slPanelColor) slPanelColor.addEventListener('input', ()=>{
+      state.slots.panelColor = slPanelColor.value;
+      if (slPreviewFrame){
+        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
+        const pc = slPanelColor.value || '#ffffff';
+        slPreviewFrame.style.background = `rgba(${parseInt(pc.slice(1,3),16)},${parseInt(pc.slice(3,5),16)},${parseInt(pc.slice(5,7),16)},${fNorm})`;
+      }
+      persist(); sendState();
+    });
+
+    // extra effect alpha sliders
+    slVignetteAlpha.addEventListener('input', ()=>{
+      const pct = parseInt(slVignetteAlpha.value,10)||0; state.slots.vignetteAlpha = clamp(pct/100,0,1);
+      document.getElementById('sl-vignette-alpha-val').textContent = pct + '%'; persist(); sendState();
+    });
+    slCenterAlpha.addEventListener('input', ()=>{
+      const pct = parseInt(slCenterAlpha.value,10)||0; state.slots.centerAlpha = clamp(pct/100,0,1);
+      document.getElementById('sl-center-alpha-val').textContent = pct + '%'; persist(); sendState();
+    });
+    slSpinAlpha.addEventListener('input', ()=>{
+      const pct = parseInt(slSpinAlpha.value,10)||0; state.slots.spinAlpha = clamp(pct/100,0,1);
+      document.getElementById('sl-spin-alpha-val').textContent = pct + '%'; persist(); sendState();
     });
     slSfx.addEventListener('change', ()=>{
       state.slots.sfx = !!slSfx.checked;
@@ -337,25 +503,14 @@ function renderHistory(){
       persist(); sendState();
     });
 
-    // NEW: view mode handlers
-    slIncludeAll.addEventListener('click', ()=>{
+    // NEW: view mode handler (compact select)
+    if (slViewSelect) slViewSelect.addEventListener('change', ()=>{
       ensureSlotsState();
-      state.slots.view = 'all';
+      state.slots.view = slViewSelect.value || 'all';
       applySlotsView();
       persist(); sendState();
     });
-    slWeaponsOnly.addEventListener('click', ()=>{
-      ensureSlotsState();
-      state.slots.view = 'weapons';
-      applySlotsView();
-      persist(); sendState();
-    });
-    slCharacterOnly.addEventListener('click', ()=>{
-      ensureSlotsState();
-      state.slots.view = 'character';
-      applySlotsView();
-      persist(); sendState();
-    });
+
 
     slRescan.addEventListener('click', ()=> rescanAndRender(slLegends, slWeapons));
     slSpin.addEventListener('click', ()=>{
@@ -391,6 +546,19 @@ function renderHistory(){
       renderGrid(slLegends, state.slots.legends);
       renderGrid(slWeapons, state.slots.weapons);
       applySlotsView(); // NEW
+      // Initialize preview visuals
+      try{
+        const fp = parseInt(slFrameAlpha.value,10) || 0;
+        const gp = parseInt(slGlowAlpha.value,10) || 0;
+          if (slPreviewFrame){
+    const fNorm = clamp(fp/100,0,1);
+    const gNorm = clamp(gp/100,0,1);
+    const fc = slFrameColor.value || '#ffffff';
+    const pc = (slPanelColor && slPanelColor.value) ? slPanelColor.value : fc;
+    slPreviewFrame.style.boxShadow = `0 0 ${8 + gNorm*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(fc.slice(1,3),16)},${parseInt(fc.slice(3,5),16)},${parseInt(fc.slice(5,7),16)},${fNorm})`;
+    slPreviewFrame.style.background = `rgba(${parseInt(pc.slice(1,3),16)},${parseInt(pc.slice(3,5),16)},${parseInt(pc.slice(5,7),16)},${fNorm})`;
+        }
+      }catch(e){}
     })();
 
     // store for auto-rescan on tab show
