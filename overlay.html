@@ -86,12 +86,8 @@
 .reel {
   width:200px; height:220px; overflow:hidden; position:relative;
   border-radius:16px; border:1px solid #ffffff2a;
-  /* Use the solid accent (--accent1) as the base so the colored area remains visible.
-     The white fill stops are controlled by --frame-alpha so they can fade independently. */
-  background:
-    /* blend accent1 + accent2 then fade into the panel color so accent2 is visible */
-    radial-gradient(120% 100% at 50% 0%, var(--accent1), var(--accent2) 50%, rgba(var(--panel-color-r,255), var(--panel-color-g,255), var(--panel-color-b,255), var(--panel-alpha)) 90%),
-    linear-gradient(180deg, rgba(var(--panel-color-r,255), var(--panel-color-g,255), var(--panel-color-b,255), var(--panel-alpha)), rgba(var(--panel-color-r,255), var(--panel-color-g,255), var(--panel-color-b,255), var(--panel-alpha)));
+  /* Single fill gradient provided by controller via --slot-fill */
+  background: var(--slot-fill, radial-gradient(120% 100% at 50% 0%, var(--accent1), var(--accent2) 55%));
   box-shadow:
     0 14px 36px rgba(0,0,0,.45),
     inset 0 0 0 1px rgba(255,255,255,.06);
@@ -110,7 +106,6 @@
   top: calc(50% - 55px); height:110px;  /* same as CELL_H */
   border-radius:12px;
   box-shadow:
-  inset 0 0 0 2px rgba(255,255,255, var(--panel-alpha)),
   inset 0 0 24px var(--accent2-soft),
   0 8px 22px rgba(0,0,0,.38);
   pointer-events:none;
@@ -169,6 +164,8 @@
   body.framefx-tilt .reel::after{ transform: translateZ(0); }
 
 .strip{ position:absolute; left:0; top:0; width:100%; will-change: transform }
+/* keep strip above any behind-the-reel layers (like sunburst) */
+.reel .strip{ z-index:1; }
 /* Smoothly fade blur in/out while spinning */
 .strip{ transition: filter .25s ease-in-out; }
 
@@ -427,6 +424,8 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
   if (typeof s.vignetteAlpha === 'number') document.documentElement.style.setProperty('--vignette-alpha', String(clamp(s.vignetteAlpha,0,1)));
   if (typeof s.centerAlpha === 'number') document.documentElement.style.setProperty('--center-alpha', String(clamp(s.centerAlpha,0,1)));
   if (typeof s.spinAlpha === 'number') document.documentElement.style.setProperty('--spin-alpha', String(clamp(s.spinAlpha,0,1)));
+  // slot fill gradient
+  if (typeof s.slotFill === 'string' && s.slotFill.trim()) document.documentElement.style.setProperty('--slot-fill', s.slotFill.trim());
   // frameAlpha maps to the slot frame (border) opacity; panelAlpha controls the inner white overlay
   document.documentElement.style.setProperty('--frame-alpha', String(fa));
   // maintain legacy behaviour: if controller provides panelAlpha use it, otherwise mirror frameAlpha for compatibility
@@ -435,13 +434,13 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
   document.documentElement.style.setProperty('--glow-alpha', String(ga));
 
     // Also update the "soft" accent variables so any CSS using --accentX-soft reflects the glowAlpha.
-    // Parse --accent1 / --accent2 into RGB then set --accent1-soft / --accent2-soft to rgba(r,g,b,ga)
-  const docEl = document.documentElement;
-  // style presets set --accent* on the body class; read from body first, fall back to root
-  const csBody = getComputedStyle(document.body);
-  const csRoot = getComputedStyle(docEl);
-  const a1 = (csBody.getPropertyValue('--accent1') || csRoot.getPropertyValue('--accent1') || '').trim();
-  const a2 = (csBody.getPropertyValue('--accent2') || csRoot.getPropertyValue('--accent2') || '').trim();
+  // Prefer a dedicated glowColor if provided; otherwise derive from accent1/accent2
+    const docEl = document.documentElement;
+    const csBody = getComputedStyle(document.body);
+    const csRoot = getComputedStyle(docEl);
+    const a1 = (csBody.getPropertyValue('--accent1') || csRoot.getPropertyValue('--accent1') || '').trim();
+    const a2 = (csBody.getPropertyValue('--accent2') || csRoot.getPropertyValue('--accent2') || '').trim();
+    const glowColor = (typeof s.glowColor==='string' && s.glowColor.trim()) ? s.glowColor.trim() : '';
 
     function parseToRGB(s){
       if (!s) return null;
@@ -486,10 +485,18 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     const res1 = resolveComputedRGB('--accent1', a1);
     const res2 = resolveComputedRGB('--accent2', a2);
     const fallbackRGB = [255,255,255];
-    const use1 = res1 || rgb1 || fallbackRGB;
-    const use2 = res2 || rgb2 || fallbackRGB;
-    docEl.style.setProperty('--accent1-soft', `rgba(${use1[0]}, ${use1[1]}, ${use1[2]}, ${ga})`);
-    docEl.style.setProperty('--accent2-soft', `rgba(${use2[0]}, ${use2[1]}, ${use2[2]}, ${ga})`);
+    if (glowColor){
+      const gRGB = resolveComputedRGB('--glow-color', glowColor) || parseToRGB(glowColor) || fallbackRGB;
+      docEl.style.setProperty('--accent1-soft', `rgba(${gRGB[0]}, ${gRGB[1]}, ${gRGB[2]}, ${ga})`);
+      docEl.style.setProperty('--accent2-soft', `rgba(${gRGB[0]}, ${gRGB[1]}, ${gRGB[2]}, ${ga})`);
+      docEl.style.setProperty('--accent-ring', `rgba(${gRGB[0]}, ${gRGB[1]}, ${gRGB[2]}, ${Math.min(0.5, ga+0.05)})`);
+    } else {
+      const use1 = res1 || rgb1 || fallbackRGB;
+      const use2 = res2 || rgb2 || fallbackRGB;
+      docEl.style.setProperty('--accent1-soft', `rgba(${use1[0]}, ${use1[1]}, ${use1[2]}, ${ga})`);
+      docEl.style.setProperty('--accent2-soft', `rgba(${use2[0]}, ${use2[1]}, ${use2[2]}, ${ga})`);
+      docEl.style.setProperty('--accent-ring', `rgba(${use1[0]}, ${use1[1]}, ${use1[2]}, ${Math.min(0.5, ga+0.05)})`);
+    }
     // parse frame-color (#rrggbb) into numeric CSS vars for rgba usage
     try{
       const fc = getComputedStyle(docEl).getPropertyValue('--frame-color').trim() || '#ffffff';
@@ -793,22 +800,109 @@ const DIR    = 'down';       // 'down' for classic feel, 'up' if you prefer the 
 let slotsSpinning = false;
 let slotsRAF = null;
 
-// Slots VFX: particles burst
-let slotsFxCanvas=null, slotsFxCtx=null, slotsFxRaf=null, slotsFxEndTime=0, slotsFxParticles=[];
-function createSlotsFxCanvas(){ if(slotsFxCanvas) return; const vp=document.querySelector('.viewport'); slotsFxCanvas=document.createElement('canvas'); slotsFxCanvas.id='slotsFx'; slotsFxCanvas.style.position='absolute'; slotsFxCanvas.style.inset='0'; slotsFxCanvas.style.pointerEvents='none'; slotsFxCanvas.style.zIndex='7'; vp.appendChild(slotsFxCanvas); resizeSlotsFx(); window.addEventListener('resize',resizeSlotsFx); }
-function resizeSlotsFx(){ if(!slotsFxCanvas) return; const rect=document.body.getBoundingClientRect(); slotsFxCanvas.width=Math.max(1,Math.floor(rect.width*(window.devicePixelRatio||1))); slotsFxCanvas.height=Math.max(1,Math.floor(rect.height*(window.devicePixelRatio||1))); slotsFxCtx=slotsFxCanvas.getContext('2d'); slotsFxCtx.setTransform(1,0,0,1,0,0); }
-function stopSlotsFx(){ if(slotsFxRaf){ cancelAnimationFrame(slotsFxRaf); slotsFxRaf=null; } if(slotsFxCtx){ slotsFxCtx.clearRect(0,0,slotsFxCanvas.width,slotsFxCanvas.height); } if(slotsFxCanvas&&slotsFxCanvas.parentNode){ slotsFxCanvas.parentNode.removeChild(slotsFxCanvas);} slotsFxCanvas=slotsFxCtx=null; window.removeEventListener('resize',resizeSlotsFx); }
-function drawSlotsFx(t){ if(!slotsFxCtx) return; const W=slotsFxCanvas.width,H=slotsFxCanvas.height; slotsFxCtx.clearRect(0,0,W,H); const now=performance.now(); for(const p of slotsFxParticles){ const dt=(now - p.t0)/1000; p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.life-=dt; p.rot+=p.vr; slotsFxCtx.save(); slotsFxCtx.translate(p.x,p.y); slotsFxCtx.rotate(p.rot); slotsFxCtx.globalAlpha=Math.max(0,Math.min(1,p.life/p.life0)); slotsFxCtx.fillStyle=p.color; if(p.shape==='rect'){ slotsFxCtx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.6); } else { slotsFxCtx.beginPath(); slotsFxCtx.arc(0,0,p.s*0.5,0,Math.PI*2); slotsFxCtx.fill(); } slotsFxCtx.restore(); }
-  slotsFxParticles=slotsFxParticles.filter(p=>p.life>0 && p.y < H+80);
-  if(performance.now()<slotsFxEndTime && slotsFxParticles.length){ slotsFxRaf=requestAnimationFrame(drawSlotsFx); } else { stopSlotsFx(); }
+// Slots VFX: layered canvases
+// 1) Stars canvas (under vignette)
+let starsCanvas=null, starsCtx=null, starsRaf=null, starsParticles=[], starsActive=false;
+function createStarsCanvas(){ if(starsCanvas) return; const vp=document.querySelector('.viewport'); starsCanvas=document.createElement('canvas'); starsCanvas.id='slotsStars'; starsCanvas.style.position='absolute'; starsCanvas.style.inset='0'; starsCanvas.style.pointerEvents='none'; starsCanvas.style.zIndex='-1'; vp.appendChild(starsCanvas); resizeStars(); window.addEventListener('resize',resizeStars); }
+function resizeStars(){ if(!starsCanvas) return; const host=starsCanvas.parentElement||document.body; const rect=host.getBoundingClientRect(); starsCanvas.width=Math.max(1,Math.floor(rect.width*(window.devicePixelRatio||1))); starsCanvas.height=Math.max(1,Math.floor(rect.height*(window.devicePixelRatio||1))); starsCtx=starsCanvas.getContext('2d'); starsCtx.setTransform(1,0,0,1,0,0); }
+function stopStarsCanvas(){ if(starsRaf){ cancelAnimationFrame(starsRaf); starsRaf=null; } if(starsCtx){ starsCtx.clearRect(0,0,starsCanvas.width,starsCanvas.height); } if(starsCanvas&&starsCanvas.parentNode){ starsCanvas.parentNode.removeChild(starsCanvas);} starsCanvas=starsCtx=null; window.removeEventListener('resize',resizeStars); }
+function drawStars(){ if(!starsCtx) return; const W=starsCanvas.width,H=starsCanvas.height; starsCtx.clearRect(0,0,W,H); const now=performance.now();
+  // spawn inside entire overlay area with gentle drift
+  if (starsActive){
+    const S=state.slots||{}; const amount=Math.max(0, Math.min(500, Number(S.starsAmount||60)));
+    const toSpawn = Math.floor(amount*0.03);
+    for(let i=0;i<toSpawn;i++){
+      const x = Math.random()*W, y = Math.random()*H;
+      const vx=(Math.random()-0.5)*0.25, vy=(Math.random()-0.5)*0.25;
+      const size=3+Math.random()*6; const rot=Math.random()*Math.PI*2, vr=(Math.random()-0.5)*0.03;
+      const a1=getComputedStyle(document.body).getPropertyValue('--accent1').trim()||'#7c3aed';
+      const a2=getComputedStyle(document.body).getPropertyValue('--accent2').trim()||'#22d3ee';
+      const color=(Math.random()<0.6)?'rgba(255,255,255,0.9)':(Math.random()<0.5?a1:a2);
+      starsParticles.push({x,y,vx,vy,g:0,rot,vr,s:size,shape:Math.random()<0.5?'rect':'circle',life:2.2+Math.random()*1.0,life0:2.5,t0:now,color});
+    }
+  }
+  for(const p of starsParticles){ const dt=(now-p.t0)/1000; p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.life-=dt; p.rot+=p.vr; starsCtx.save(); starsCtx.translate(p.x,p.y); starsCtx.rotate(p.rot); starsCtx.globalAlpha=Math.max(0,Math.min(1,p.life/p.life0)); starsCtx.fillStyle=p.color; if(p.shape==='rect'){ starsCtx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.6); } else { starsCtx.beginPath(); starsCtx.arc(0,0,p.s*0.5,0,Math.PI*2); starsCtx.fill(); } starsCtx.restore(); }
+  starsParticles=starsParticles.filter(p=>p.life>0 && p.x>-80 && p.x<W+80 && p.y>-80 && p.y<H+80);
+  if (starsActive || starsParticles.length){ starsRaf=requestAnimationFrame(drawStars); } else { stopStarsCanvas(); }
 }
-function startSlotsBurst(){ const S=state.slots||{}; if(S.vfx===false) return; createSlotsFxCanvas(); const W=slotsFxCanvas.width, H=slotsFxCanvas.height; const dpr=(window.devicePixelRatio||1); function centerOf(node){ if(!node) return {x:W/2,y:H/2}; const r=node.getBoundingClientRect(); const cx=(r.left+r.right)/2, cy=(r.top+r.bottom)/2; return {x:cx*dpr, y:cy*dpr}; }
+
+// 2) Per-reel sunburst canvases (behind strips, color-cycling)
+let sunCanvases = [null,null,null];
+let sunCtxs     = [null,null,null];
+let sunRaf = null, sunburstRunning=false, sunburstSpeed=0.8; // rotations per second
+function ensureSunCanvas(i){
+  const reelNode = [el.reel0, el.reel1, el.reel2][i]?.parentElement; if(!reelNode) return;
+  if (!sunCanvases[i]){
+    const c=document.createElement('canvas'); c.className='sunburstCanvas'; c.style.position='absolute'; c.style.inset='0'; c.style.pointerEvents='none'; c.style.zIndex='0';
+    reelNode.insertBefore(c, reelNode.firstChild);
+    sunCanvases[i]=c; sunCtxs[i]=c.getContext('2d');
+    resizeSunCanvas(i);
+  }
+}
+function resizeSunCanvas(i){ const c=sunCanvases[i]; if(!c) return; const host=c.parentElement; const rect=host.getBoundingClientRect(); const dpr=Math.max(1,window.devicePixelRatio||1); c.width=Math.max(1,Math.floor(rect.width*dpr)); c.height=Math.max(1,Math.floor(rect.height*dpr)); const ctx=sunCtxs[i]; if(ctx){ ctx.setTransform(1,0,0,1,0,0); } }
+function stopSunburst(){ if(sunRaf){ cancelAnimationFrame(sunRaf); sunRaf=null; } sunburstRunning=false; for(let i=0;i<3;i++){ const c=sunCanvases[i]; if(c&&c.parentNode){ c.parentNode.removeChild(c);} sunCanvases[i]=null; sunCtxs[i]=null; } window.removeEventListener('resize', resizeAllSunCanvases);
+}
+function resizeAllSunCanvases(){ for(let i=0;i<3;i++){ if(sunCanvases[i]) resizeSunCanvas(i); } }
+function startSunburst(){ const S=state.slots||{}; if(S.vfx===false) return; sunburstRunning=true; for(let i=0;i<3;i++) ensureSunCanvas(i); if(!sunRaf) sunRaf=requestAnimationFrame(drawSunburst); window.addEventListener('resize', resizeAllSunCanvases); }
+function lerp(a,b,t){ return a + (b-a)*t; }
+function hexToRgb(hex){ const h=hex.replace('#',''); if(h.length===3){ return [parseInt(h[0]+h[0],16),parseInt(h[1]+h[1],16),parseInt(h[2]+h[2],16)]; } return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+function mixHex(a,b,t){ const ra=hexToRgb(a), rb=hexToRgb(b); const r=Math.round(lerp(ra[0],rb[0],t)), g=Math.round(lerp(ra[1],rb[1],t)), bl=Math.round(lerp(ra[2],rb[2],t)); return `rgb(${r},${g},${bl})`; }
+function drawSunburst(ts){ if(!sunburstRunning){ return; }
+  const a1=(getComputedStyle(document.body).getPropertyValue('--accent1').trim()||'#7c3aed');
+  const a2=(getComputedStyle(document.body).getPropertyValue('--accent2').trim()||'#22d3ee');
+  const rays=18; const spin = (ts*0.001*sunburstSpeed) % (Math.PI*2);
+  for(let i=0;i<3;i++){
+    const c=sunCanvases[i], ctx=sunCtxs[i], reel=reels[i]; if(!c||!ctx) continue; // draw only while reel is spinning
+    ctx.clearRect(0,0,c.width,c.height);
+    if(!(reel && reel.started && !reel.done)) continue;
+    const dpr=Math.max(1,window.devicePixelRatio||1);
+    const w=c.width, h=c.height; const cx=w/2, cy=h/2; const len=Math.max(40*dpr, Math.min(w,h)*0.78); const thick=Math.max(6*dpr, Math.min(w,h)*0.12);
+    ctx.save(); ctx.translate(cx,cy);
+    for(let r=0;r<rays;r++){
+      const ang = spin + r*(Math.PI*2/rays);
+      // smoothly cycle color along the ring
+      const t = (Math.sin(spin*2 + r*0.6)+1)/2; const col = mixHex(a1,a2,t);
+      const a = 0.14 + 0.12*Math.sin(spin*3 + r);
+      ctx.save(); ctx.rotate(ang); ctx.globalAlpha = Math.max(0,Math.min(0.32,a)); ctx.fillStyle=col; ctx.fillRect(0, -thick/2, len, thick); ctx.restore();
+    }
+    ctx.restore();
+  }
+  sunRaf=requestAnimationFrame(drawSunburst);
+}
+
+// 3) FX canvas (for landing bursts and frontmost effects)
+let slotsFxCanvas=null, slotsFxCtx=null, slotsFxRaf=null, slotsFxEndTime=0, slotsFxParticles=[];
+function createSlotsFxCanvas(){ if(slotsFxCanvas) return; const vp=document.querySelector('.viewport'); slotsFxCanvas=document.createElement('canvas'); slotsFxCanvas.id='slotsFx'; slotsFxCanvas.style.position='absolute'; slotsFxCanvas.style.inset='0'; slotsFxCanvas.style.pointerEvents='none'; slotsFxCanvas.style.zIndex='4'; vp.appendChild(slotsFxCanvas); resizeSlotsFx(); window.addEventListener('resize',resizeSlotsFx); }
+function resizeSlotsFx(){ if(!slotsFxCanvas) return; const host=slotsFxCanvas.parentElement||document.body; const rect=host.getBoundingClientRect(); slotsFxCanvas.width=Math.max(1,Math.floor(rect.width*(window.devicePixelRatio||1))); slotsFxCanvas.height=Math.max(1,Math.floor(rect.height*(window.devicePixelRatio||1))); slotsFxCtx=slotsFxCanvas.getContext('2d'); slotsFxCtx.setTransform(1,0,0,1,0,0); }
+function stopSlotsFx(){ if(slotsFxRaf){ cancelAnimationFrame(slotsFxRaf); slotsFxRaf=null; } if(slotsFxCtx){ slotsFxCtx.clearRect(0,0,slotsFxCanvas.width,slotsFxCanvas.height); } if(slotsFxCanvas&&slotsFxCanvas.parentNode){ slotsFxCanvas.parentNode.removeChild(slotsFxCanvas);} slotsFxCanvas=slotsFxCtx=null; window.removeEventListener('resize',resizeSlotsFx); }
+function drawSlotsFx(t){ if(!slotsFxCtx) return; const W=slotsFxCanvas.width,H=slotsFxCanvas.height; slotsFxCtx.clearRect(0,0,W,H); const now=performance.now();
+  for(const p of slotsFxParticles){
+    const dt=(now - p.t0)/1000; p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.life-=dt; p.rot+=p.vr;
+    slotsFxCtx.save(); slotsFxCtx.translate(p.x,p.y); slotsFxCtx.rotate(p.rot); slotsFxCtx.globalAlpha=Math.max(0,Math.min(1,p.life/p.life0));
+    if(p.shape==='rect'){
+      slotsFxCtx.fillStyle=p.color; slotsFxCtx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.6);
+    } else if (p.shape==='ray'){
+      const growth = 1 - Math.max(0, Math.min(1, p.life/p.life0));
+      const len = Math.max(4, (p.maxLen||90) * growth);
+      slotsFxCtx.fillStyle=p.color; slotsFxCtx.fillRect(0, -p.s/2, len, p.s);
+    } else {
+      slotsFxCtx.fillStyle=p.color; slotsFxCtx.beginPath(); slotsFxCtx.arc(0,0,p.s*0.5,0,Math.PI*2); slotsFxCtx.fill();
+    }
+    slotsFxCtx.restore();
+  }
+  slotsFxParticles=slotsFxParticles.filter(p=>p.life>0 && p.x>-80 && p.x<W+80 && p.y>-80 && p.y<H+80);
+  // Keep RAF going if burst particles still alive
+  if ((performance.now()<slotsFxEndTime && slotsFxParticles.length)) { slotsFxRaf=requestAnimationFrame(drawSlotsFx); } else { stopSlotsFx(); }
+}
+function startSlotsBurst(){ const S=state.slots||{}; if(S.vfx===false || S.hitEnabled===false) return; createSlotsFxCanvas(); const W=slotsFxCanvas.width, H=slotsFxCanvas.height; const dpr=(window.devicePixelRatio||1); function centerOf(node){ if(!node) return {x:W/2,y:H/2}; const r=node.getBoundingClientRect(); const cx=(r.left+r.right)/2, cy=(r.top+r.bottom)/2; return {x:cx*dpr, y:cy*dpr}; }
   const reelsEls=[el.reel0?.parentElement, el.reel1?.parentElement, el.reel2?.parentElement].filter(n=>n && getComputedStyle(n).display!=='none');
   const centers = reelsEls.length? reelsEls.map(centerOf) : [{x:W/2,y:H/2}];
   const colors=['#ffffff','rgba(255,255,255,0.9)','var(--accent1)','var(--accent2)'];
   slotsFxParticles=[]; const per=60; for(const c of centers){ for(let i=0;i<per;i++){ const a=Math.random()*Math.PI*2; const sp=2+Math.random()*4; const vx=Math.cos(a)*sp, vy=Math.sin(a)*sp; const s=6+Math.random()*10; const color = (i%4<2)? 'rgba(255,255,255,0.85)' : (i%4===2? getComputedStyle(document.body).getPropertyValue('--accent1').trim() : getComputedStyle(document.body).getPropertyValue('--accent2').trim()); slotsFxParticles.push({x:c.x,y:c.y,vx,vy,vr:(Math.random()-0.5)*0.2,rot:0,s,shape:Math.random()<0.5?'rect':'circle',g:0.05,life:0.9+Math.random()*0.6,life0:1.2,t0:performance.now(),color}); } }
   slotsFxEndTime=performance.now()+1200; if(!slotsFxRaf) slotsFxRaf=requestAnimationFrame(drawSlotsFx);
 }
+
+function startSlotsSunburst(){ startSunburst(); }
 
 // Slots SFX
 function playSlotSpinStart(){ const s=state.slots||{}; if(s.sfx===false) return; ensureAC(); sweep({from:220,to:720,dur:340,type:'sawtooth',vol:0.06}); }
@@ -984,6 +1078,13 @@ function startSlotsSpin(payload){
   // SFX on spin start
   playSlotSpinStart();
 
+  // Stars during spin (under vignette)
+  const Sstars = state.slots || {};
+  starsActive = (Sstars.vfx !== false) && !!Sstars.starsEnabled;
+  if (starsActive){ createStarsCanvas(); if(!starsRaf) starsRaf=requestAnimationFrame(drawStars); }
+  // Sunburst while spinning (behind slots)
+  startSlotsSunburst();
+
   // --- PLAN → indices
   const plan = payload?.plan || null;
   let idx0 = plan ? findIndexBySrc(reels[0].list, plan.legendSrc)  : -1;
@@ -1107,9 +1208,13 @@ function startSlotsSpin(payload){
       // Hide non-centered cells for clean presentation
       el.slotsWrap.classList.add('focused');
 
-      // Landing SFX + VFX
+    // Landing SFX + VFX
       playSlotLand();
-      startSlotsBurst();
+  startSlotsBurst();
+  // stop continuous sunburst and stars
+  stopSunburst();
+  // stop continuous stars
+  starsActive = false;
       if ((state.slots||{}).vfx !== false){
         el.slotsWrap.classList.add('shake'); setTimeout(()=>el.slotsWrap.classList.remove('shake'), 260);
         el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show');
@@ -1170,7 +1275,7 @@ function stopSlots(){
   // And focus the centered cells
   el.slotsWrap.classList.add('focused');
   // Landing SFX + VFX even on forced stop
-  playSlotLand(); startSlotsBurst(); if ((state.slots||{}).vfx !== false){ el.slotsWrap.classList.add('shake'); setTimeout(()=>el.slotsWrap.classList.remove('shake'), 260); el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show'); }
+  playSlotLand(); startSlotsBurst(); stopSunburst(); starsActive=false; if ((state.slots||{}).vfx !== false){ el.slotsWrap.classList.add('shake'); setTimeout(()=>el.slotsWrap.classList.remove('shake'), 260); el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show'); }
 }
 
 
@@ -1222,10 +1327,10 @@ function stopSlots(){
   connect();
   // Audio gate button
   if (el.audioGateBtn) el.audioGateBtn.addEventListener('click', ()=>{ ensureAC(); updateAudioGateVisibility(); });
-  // Passive resume hooks to satisfy autoplay policies in most browsers
-  window.addEventListener('pointerdown', ()=>{ ensureAC(); }, { once:true });
-  window.addEventListener('keydown',     ()=>{ ensureAC(); }, { once:true });
-  document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible') ensureAC(); }, { once:true });
+  // Passive resume hooks to satisfy autoplay policies in most browsers (keep listeners active)
+  window.addEventListener('pointerdown', ()=>{ ensureAC(); });
+  window.addEventListener('keydown',     ()=>{ ensureAC(); });
+  document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible') ensureAC(); });
 })();
 </script>
 </body>

@@ -38,13 +38,27 @@ export function init(ctx){
       </div>
       <div class="card" style="margin-bottom:12px">
         <div class="field" style="flex-wrap:wrap; gap:12px; align-items:center">
-          <label for="sl-accent1">Accent 1</label>
+          <label for="sl-frame-color">Slot Border</label>
+          <input id="sl-frame-color" type="color" class="input" value="#ffffff">
+          <div style="flex-basis:100%"></div>
+          <label>Gradient</label>
+          <select id="sl-grad-type" class="select">
+            <option value="linear">Linear</option>
+            <option value="radial">Radial</option>
+          </select>
+          <label style="margin-left:8px">Angle</label>
+          <input id="sl-grad-angle" type="range" min="0" max="360" step="1" value="180" style="width:140px">
+          <div id="sl-grad-angle-val" class="hint" style="min-width:44px; text-align:right">180°</div>
+          <div style="flex-basis:100%"></div>
+          <label for="sl-accent1">Stop 1</label>
           <input id="sl-accent1" type="color" class="input" value="#7c3aed">
-          <label for="sl-accent2">Accent 2</label>
+          <input id="sl-grad-p1" type="number" class="input" min="0" max="100" step="1" value="0" style="width:80px" title="Position %">
+          <label for="sl-accent2" style="margin-left:10px">Stop 2</label>
           <input id="sl-accent2" type="color" class="input" value="#22d3ee">
-          <label for="sl-panel-color">Panel Color</label>
-          <input id="sl-panel-color" type="color" class="input" value="#ffffff">
-          <div class="hint">Pick two base colors used for reel accents and glows.</div>
+          <input id="sl-grad-p2" type="number" class="input" min="0" max="100" step="1" value="100" style="width:80px" title="Position %">
+          <label for="sl-glow-color">Glow Color</label>
+          <input id="sl-glow-color" type="color" class="input" value="#22d3ee">
+          <div class="hint">Single slot fill defined by a gradient. Adjust type, angle and two color stops (with positions). Glow Color is used for glows only.</div>
         </div>
       </div>
       <div class="card" style="margin-bottom:12px">
@@ -74,11 +88,6 @@ export function init(ctx){
         </div>
       </div>
       <div class="card" style="margin-bottom:12px">
-        <div class="field" style="align-items:center; gap:12px">
-          <label for="sl-frame-color">Slot Frame Color</label>
-          <input id="sl-frame-color" type="color" class="input" value="#ffffff">
-          <div class="hint">Choose the slot frame (cell border) color for each reel panel.</div>
-        </div>
         <div class="field" style="align-items:center; gap:12px; margin-top:8px">
           <label for="sl-frame-alpha" style="min-width:140px">Slot Frame Transparency</label>
           <input id="sl-frame-alpha" type="range" min="0" max="100" step="1" class="input" value="16" style="flex:1">
@@ -106,10 +115,10 @@ export function init(ctx){
         </div>
         <div class="hint" style="margin-top:8px">
           <div style="display:flex;align-items:center;gap:12px">
-            <div id="sl-preview" style="width:160px;height:80px;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;background:#0e0e11;border:1px solid rgba(255,255,255,0.06)">
-              <div id="sl-preview-frame" style="width:120px;height:56px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center"></div>
+            <div id="sl-preview" style="width:200px;height:100px;border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative;background:#0e0e11;border:1px solid rgba(255,255,255,0.06)">
+              <div id="sl-preview-frame" style="width:150px;height:70px;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden"></div>
             </div>
-            <div style="flex:1">Preview (local)</div>
+            <div style="flex:1">Preview (reflects colors and transparency)</div>
           </div>
         </div>
       </div>
@@ -129,6 +138,19 @@ export function init(ctx){
             <option value="both">Both (Normal + Glow)</option>
           </select>
           <div class="hint">Spin-only vignette and effects. Toggle SFX/VFX if needed.</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="field" style="flex-wrap:wrap; gap:12px; align-items:center">
+          <label style="display:inline-flex; align-items:center; gap:8px">
+            <input type="checkbox" id="sl-stars-enabled" checked> Stars during spin
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:8px">
+            <input type="checkbox" id="sl-hit-enabled" checked> Landing burst
+          </label>
+          <label for="sl-stars-amount">Stars Amount</label>
+          <input id="sl-stars-amount" class="input" type="number" step="1" min="0" max="500" value="60" style="width:84px">
+          <div class="hint">Floating star particles while reels spin; amount controls intensity.</div>
         </div>
       </div>
       <div class="card" style="margin-bottom:12px">
@@ -188,6 +210,9 @@ export function init(ctx){
   if (typeof state.slots.vfx !== 'boolean') state.slots.vfx = true;
   if (typeof state.slots.vignette !== 'string') state.slots.vignette = 'normal';
   if (typeof state.slots.cs2Side !== 'string') state.slots.cs2Side = 'all';
+  if (typeof state.slots.starsEnabled !== 'boolean') state.slots.starsEnabled = true;
+  if (typeof state.slots.hitEnabled !== 'boolean') state.slots.hitEnabled = true;
+  if (typeof state.slots.starsAmount !== 'number') state.slots.starsAmount = 60;
   }
 
   async function fetchIntoState(){
@@ -407,6 +432,10 @@ function renderHistory(){
   const slSfx      = $('#sl-sfx');
   const slVfx      = $('#sl-vfx');
   const slVignette = $('#sl-vignette');
+  // Particles controls
+  const slStarsEnabled = $('#sl-stars-enabled');
+  const slHitEnabled   = $('#sl-hit-enabled');
+  const slStarsAmount  = $('#sl-stars-amount');
   const slFrameAlpha = $('#sl-frame-alpha');
   const slGlowAlpha  = $('#sl-glow-alpha');
   const slFrameAlphaVal = $('#sl-frame-alpha-val');
@@ -419,9 +448,14 @@ function renderHistory(){
   const slIncludeAll = $('#sl-include-all');
   const slPreviewFrame = $('#sl-preview-frame');
   const slFrameColor = $('#sl-frame-color');
-  const slPanelColor = $('#sl-panel-color');
   const slAccent1 = $('#sl-accent1');
   const slAccent2 = $('#sl-accent2');
+  const slGlowColor = $('#sl-glow-color');
+  const slGradType = $('#sl-grad-type');
+  const slGradAngle = $('#sl-grad-angle');
+  const slGradAngleVal = $('#sl-grad-angle-val');
+  const slGradP1 = $('#sl-grad-p1');
+  const slGradP2 = $('#sl-grad-p2');
   const slVignetteAlpha = $('#sl-vignette-alpha');
   const slCenterAlpha = $('#sl-center-alpha');
   const slSpinAlpha = $('#sl-spin-alpha');
@@ -444,12 +478,28 @@ function renderHistory(){
   slAccent1.value  = state.slots.accent1 || '#7c3aed';
   slAccent2.value  = state.slots.accent2 || '#22d3ee';
   slFrameColor.value = state.slots.frameColor || '#ffffff';
-  slPanelColor && (slPanelColor.value = state.slots.panelColor || '#ffffff');
+  // remove panelColor: using dedicated glow color instead
   slFrame.value    = state.slots.frame || 'rounded';
   slFrameFx.value  = state.slots.frameFx || 'standard';
   slSfx.checked    = state.slots.sfx !== false;
   slVfx.checked    = state.slots.vfx !== false;
   slVignette.value = state.slots.vignette || 'normal';
+  // particles defaults
+  if (slStarsEnabled) slStarsEnabled.checked = state.slots.starsEnabled !== false;
+  if (slHitEnabled)   slHitEnabled.checked   = state.slots.hitEnabled   !== false;
+  if (slStarsAmount)  slStarsAmount.value    = String(typeof state.slots.starsAmount === 'number' ? state.slots.starsAmount : 60);
+  slGlowColor.value = state.slots.glowColor || state.slots.accent2 || '#22d3ee';
+  slGradType.value  = state.slots.gradType || 'linear';
+  slGradAngle.value = String(state.slots.gradAngle ?? 180);
+  slGradAngleVal.textContent = `${slGradAngle.value}°`;
+  slGradP1.value = String(state.slots.gradP1 ?? 0);
+  slGradP2.value = String(state.slots.gradP2 ?? 100);
+  // sync slider positions from state
+  if (typeof state.slots.frameAlpha === 'number') slFrameAlpha.value = String(Math.round(state.slots.frameAlpha*100));
+  if (typeof state.slots.glowAlpha  === 'number') slGlowAlpha.value  = String(Math.round(state.slots.glowAlpha*100));
+  if (typeof state.slots.vignetteAlpha === 'number') slVignetteAlpha.value = String(Math.round(state.slots.vignetteAlpha*100));
+  if (typeof state.slots.centerAlpha   === 'number') slCenterAlpha.value   = String(Math.round(state.slots.centerAlpha*100));
+  if (typeof state.slots.spinAlpha     === 'number') slSpinAlpha.value     = String(Math.round(state.slots.spinAlpha*100));
 
     // NEW: toggle visibility of pick lists based on view mode
     const slLegendsCard = slLegends.closest('.card');
@@ -557,6 +607,75 @@ function renderHistory(){
       state.slots.vignette = slVignette.value || 'off';
       persist(); sendState();
     });
+    // particles events
+    if (slStarsEnabled) slStarsEnabled.addEventListener('change', ()=>{ state.slots.starsEnabled = !!slStarsEnabled.checked; persist(); sendState(); });
+    if (slHitEnabled)   slHitEnabled.addEventListener('change',   ()=>{ state.slots.hitEnabled   = !!slHitEnabled.checked;   persist(); sendState(); });
+    if (slStarsAmount)  slStarsAmount.addEventListener('change',  ()=>{ const v=Math.max(0, Math.min(500, parseInt(slStarsAmount.value||'0',10))); state.slots.starsAmount=v; slStarsAmount.value=String(v); persist(); sendState(); });
+
+    function makeSlotFill(){
+      const type = state.slots.gradType || 'linear';
+      const a1 = state.slots.accent1 || '#7c3aed';
+      const a2 = state.slots.accent2 || '#22d3ee';
+      const p1 = clamp(Number(state.slots.gradP1 ?? 0), 0, 100);
+      const p2 = clamp(Number(state.slots.gradP2 ?? 100), 0, 100);
+      const angle = clamp(Number(state.slots.gradAngle ?? 180), 0, 360);
+      if (type === 'radial'){
+        return `radial-gradient(120% 100% at 50% 0%, ${a1} ${p1}%, ${a2} ${p2}%)`;
+      }
+      return `linear-gradient(${angle}deg, ${a1} ${p1}%, ${a2} ${p2}%)`;
+    }
+
+    function updatePreview(){
+      // local preview: simulate a single slot cell with our colors/alphas
+      const border = state.slots.frameColor || '#ffffff';
+      const fill = makeSlotFill();
+      const glow = state.slots.glowColor || a2;
+      const fa = typeof state.slots.frameAlpha === 'number' ? state.slots.frameAlpha : 0.16;
+      const ga = typeof state.slots.glowAlpha === 'number' ? state.slots.glowAlpha : 0.36;
+      const pa = typeof state.slots.panelAlpha === 'number' ? state.slots.panelAlpha : fa;
+      if (slPreviewFrame){
+        slPreviewFrame.style.border = `1px solid ${hexToRgba(border, fa)}`;
+        slPreviewFrame.style.background = fill;
+        slPreviewFrame.style.boxShadow = `inset 0 0 24px ${hexToRgba(glow, ga)}, 0 8px 22px rgba(0,0,0,.38)`;
+      }
+    }
+    function hexToRgba(hex, alpha){
+      if (!hex) return `rgba(255,255,255,${alpha ?? 1})`;
+      const h = hex.replace('#','');
+      const b = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
+      const r = parseInt(b.substring(0,2),16);
+      const g = parseInt(b.substring(2,4),16);
+      const bl= parseInt(b.substring(4,6),16);
+      const a = Math.max(0, Math.min(1, Number(alpha ?? 1)));
+      return `rgba(${r},${g},${bl},${a})`;
+    }
+
+    // colors
+    slFrameColor.addEventListener('input', ()=>{ state.slots.frameColor = slFrameColor.value; persist(); sendState(); updatePreview(); });
+  slAccent1.addEventListener('input', ()=>{ state.slots.accent1 = slAccent1.value; state.slots.slotFill = makeSlotFill(); persist(); sendState(); updatePreview(); });
+  slAccent2.addEventListener('input', ()=>{ state.slots.accent2 = slAccent2.value; state.slots.slotFill = makeSlotFill(); persist(); sendState(); updatePreview(); });
+    if (slGlowColor) slGlowColor.addEventListener('input', ()=>{ state.slots.glowColor = slGlowColor.value; persist(); sendState(); updatePreview(); });
+  slGradType.addEventListener('change', ()=>{ state.slots.gradType = slGradType.value; state.slots.slotFill = makeSlotFill(); persist(); sendState(); updatePreview(); });
+  slGradAngle.addEventListener('input', ()=>{ slGradAngleVal.textContent = `${slGradAngle.value}°`; state.slots.gradAngle = Number(slGradAngle.value); state.slots.slotFill = makeSlotFill(); persist(); sendState(); updatePreview(); });
+  slGradP1.addEventListener('change', ()=>{ const v=clamp(parseInt(slGradP1.value||'0',10),0,100); slGradP1.value=String(v); state.slots.gradP1=v; state.slots.slotFill = makeSlotFill(); persist(); sendState(); updatePreview(); });
+  slGradP2.addEventListener('change', ()=>{ const v=clamp(parseInt(slGradP2.value||'100',10),0,100); slGradP2.value=String(v); state.slots.gradP2=v; state.slots.slotFill = makeSlotFill(); persist(); sendState(); updatePreview(); });
+
+    // transparency sliders
+    const bindAlpha = (inputEl, labelEl, key)=>{
+      const setFromUI = ()=>{
+        const v = Math.max(0, Math.min(100, parseInt(inputEl.value||'0',10)));
+        if (labelEl) labelEl.textContent = `${v}%`;
+        state.slots[key] = v/100;
+        persist(); sendState(); updatePreview();
+      };
+      inputEl.addEventListener('input', setFromUI);
+      inputEl.addEventListener('change', setFromUI);
+    };
+    bindAlpha(slFrameAlpha, slFrameAlphaVal, 'frameAlpha');
+    bindAlpha(slGlowAlpha,  slGlowAlphaVal,  'glowAlpha');
+    bindAlpha(slVignetteAlpha, $('#sl-vignette-alpha-val'), 'vignetteAlpha');
+    bindAlpha(slCenterAlpha,   $('#sl-center-alpha-val'),   'centerAlpha');
+    bindAlpha(slSpinAlpha,     $('#sl-spin-alpha-val'),     'spinAlpha');
 
     // Game change
     slGame.addEventListener('change', async ()=>{
@@ -662,6 +781,19 @@ function renderHistory(){
       applyCs2SideFilter();
       renderGrid(slWeapons, state.slots.weapons);
       applySlotsView(); // NEW
+      // initialize alphas display + preview
+      slFrameAlphaVal.textContent = `${Math.round((state.slots.frameAlpha??0.16)*100)}%`;
+      slGlowAlphaVal.textContent  = `${Math.round((state.slots.glowAlpha??0.36)*100)}%`;
+      if (typeof state.slots.vignetteAlpha==='number') $('#sl-vignette-alpha-val').textContent = `${Math.round(state.slots.vignetteAlpha*100)}%`;
+      if (typeof state.slots.centerAlpha==='number')   $('#sl-center-alpha-val').textContent   = `${Math.round(state.slots.centerAlpha*100)}%`;
+      if (typeof state.slots.spinAlpha==='number')     $('#sl-spin-alpha-val').textContent     = `${Math.round(state.slots.spinAlpha*100)}%`;
+      // compute initial slotFill and kick a preview render
+      if (!state.slots.slotFill){
+        const ev = new Event('change'); slGradType.dispatchEvent(ev);
+      }
+      const evt = new Event('input');
+      slFrameColor.dispatchEvent(evt); slAccent1.dispatchEvent(evt); slAccent2.dispatchEvent(evt);
+      if (slGlowColor) slGlowColor.dispatchEvent(evt);
       renderHistory();
     })();
 
