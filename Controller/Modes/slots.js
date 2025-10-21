@@ -9,17 +9,31 @@ export function init(ctx){
 
   function html(){
     return `
-      <div class="title">Slots Mode (Apex)</div>
+      <div class="title">Slots Mode</div>
       <div class="desc" style="margin-bottom:12px">
-        <div class="field" style="flex-direction:row; align-items:center; gap:8px">
-          <label for="sl-view">View</label>
-          <select id="sl-view" class="select">
-            <option value="all">Include All</option>
-            <option value="weapons">Weapons Only</option>
-            <option value="one-weapon">1 Weapon Only</option>
-            <option value="character">Character Only</option>
-          </select>
-          <div class="hint">Choose which reels are visible.</div>
+        <div class="field" style="flex-direction:column; align-items:stretch; gap:6px">
+          <button class="toolbtn" id="sl-weapons-only">Weapons Only</button>
+          <button class="toolbtn" id="sl-weapon-one">Single Weapon</button>
+          <button class="toolbtn" id="sl-character-only">Character Only</button>
+          <button class="toolbtn" id="sl-include-all">Include All</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="field" style="flex-wrap:wrap; gap:10px">
+          <label for="sl-game">Game</label>
+          <select id="sl-game" class="select"></select>
+          <div class="hint">Choose which game's assets to use. Detected under /Assets/*</div>
+        </div>
+      </div>
+      <div class="card" id="sl-side-card" style="margin-bottom:12px; display:none">
+        <div class="field" style="flex-wrap:wrap; gap:10px; align-items:center">
+          <label>CS2 Side</label>
+          <div style="display:flex; gap:6px">
+            <button class="toolbtn" id="sl-side-all">All</button>
+            <button class="toolbtn" id="sl-side-ct">CT</button>
+            <button class="toolbtn" id="sl-side-t">T</button>
+          </div>
+          <div class="hint">Filters CS2 weapons by Counter-Terrorist or Terrorist side.</div>
         </div>
       </div>
       <div class="card" style="margin-bottom:12px">
@@ -160,7 +174,7 @@ export function init(ctx){
   }
 
   function ensureSlotsState(){
-  if (!state.slots) state.slots = { duration: 2.5, stagger: 0.5, invert: false, legends: [], weapons: [], view: 'all', style: 'classic', frame: 'rounded', frameFx: 'standard', sfx: true, vfx: true, vignette: 'normal' };
+  if (!state.slots) state.slots = { duration: 2.5, stagger: 0.5, invert: false, legends: [], weapons: [], view: 'all', style: 'classic', frame: 'rounded', frameFx: 'standard', sfx: true, vfx: true, vignette: 'normal', game: '' };
     if (typeof state.slots.duration !== 'number') state.slots.duration = 2.5;
     if (typeof state.slots.stagger  !== 'number') state.slots.stagger  = 0.5;
     if (typeof state.slots.invert   !== 'boolean') state.slots.invert   = false;
@@ -173,31 +187,49 @@ export function init(ctx){
   if (typeof state.slots.sfx !== 'boolean') state.slots.sfx = true;
   if (typeof state.slots.vfx !== 'boolean') state.slots.vfx = true;
   if (typeof state.slots.vignette !== 'string') state.slots.vignette = 'normal';
-  // transparency controls (0.0 - 1.0)
-  if (typeof state.slots.frameAlpha !== 'number') state.slots.frameAlpha = 0.16; // used for slot frame (cell border) opacity
-  if (typeof state.slots.glowAlpha  !== 'number') state.slots.glowAlpha  = 0.36; // used for accent glows
-  // custom colors
-  if (typeof state.slots.accent1 !== 'string') state.slots.accent1 = '#7c3aed';
-  if (typeof state.slots.accent2 !== 'string') state.slots.accent2 = '#22d3ee';
-  if (typeof state.slots.frameColor !== 'string') state.slots.frameColor = '#ffffff';
-  if (typeof state.slots.panelColor !== 'string') state.slots.panelColor = '#ffffff';
-  // effect alphas
-  if (typeof state.slots.vignetteAlpha !== 'number') state.slots.vignetteAlpha = 1.0;
-  if (typeof state.slots.centerAlpha !== 'number') state.slots.centerAlpha = 0.55;
-  if (typeof state.slots.spinAlpha !== 'number') state.slots.spinAlpha = 0.7;
+  if (typeof state.slots.cs2Side !== 'string') state.slots.cs2Side = 'all';
   }
 
   async function fetchIntoState(){
     try{
-      const r = await fetch(MANIFEST_URL, { cache:'no-store' });
+      const q = new URLSearchParams();
+      if (state.slots?.game) q.set('game', state.slots.game);
+      const url = q.toString() ? `${MANIFEST_URL}?${q}` : MANIFEST_URL;
+      const r = await fetch(url, { cache:'no-store' });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       state.slots.legends = j.legends || [];
       state.slots.weapons = j.weapons || [];
+      if (j.game) state.slots.game = j.game;
       persist(); sendState();
     }catch(e){
       console.warn('Slots manifest load failed', e);
     }
+  }
+  async function fetchGames(){
+    try{
+      const r = await fetch('/slots-games', { cache:'no-store' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      return (j.games||[]);
+    }catch(e){ console.warn('Games list load failed', e); return []; }
+  }
+  async function populateGames(){
+    try{
+      const games = await fetchGames();
+      const slGame = (panel && panel.querySelector('#sl-game'));
+      if (!slGame) return;
+      const preferred = state.slots.game || '';
+      const opts = games.map(g=>`<option value="${g.id}">${g.name||g.id}</option>`).join('');
+      slGame.innerHTML = opts || '<option value="">(No games found)</option>';
+      if (preferred && games.some(g=>g.id===preferred)) slGame.value = preferred;
+      else if (games.length){
+        const apex = games.find(g=>g.id==='ApexLegends');
+        slGame.value = apex ? apex.id : games[0].id;
+        state.slots.game = slGame.value;
+        persist();
+      }
+    }catch(e){ console.warn('populateGames failed', e); }
   }
   async function loadManifestIfEmpty(){
     ensureSlotsState();
@@ -222,27 +254,74 @@ export function init(ctx){
 
 function renderHistory(){
   const holder = panel.querySelector('#sl-history');
+  const view = (state.slots && state.slots.view) || 'all';
   const rows = (ctx.state.slotsHistory || []).map(h => {
     const t = new Date(h.ts || Date.now());
     const when = t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    return `
-      <tr>
-        <td>${when}</td>
-        <td>${niceName(h.legend)}</td>
-        <td>${niceName(h.weapon1)}</td>
-        <td>${niceName(h.weapon2)}</td>
-      </tr>`;
+    if (view === 'weapon-one'){
+      return `
+        <tr>
+          <td>${when}</td>
+          <td>${niceName(h.weapon1 || h.weapon)}</td>
+        </tr>`;
+    } else if (view === 'weapons'){
+      return `
+        <tr>
+          <td>${when}</td>
+          <td>${niceName(h.weapon1)}</td>
+          <td>${niceName(h.weapon2)}</td>
+        </tr>`;
+    } else if (view === 'character'){
+      return `
+        <tr>
+          <td>${when}</td>
+          <td>${niceName(h.legend)}</td>
+        </tr>`;
+    } else {
+      return `
+        <tr>
+          <td>${when}</td>
+          <td>${niceName(h.legend)}</td>
+          <td>${niceName(h.weapon1)}</td>
+          <td>${niceName(h.weapon2)}</td>
+        </tr>`;
+    }
   }).join('') || `<tr><td colspan="4" class="hint">No spins yet.</td></tr>`;
+
+  let thead = '';
+  if (view === 'weapon-one'){
+    thead = `
+      <tr>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Time</th>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon</th>
+      </tr>`;
+  } else if (view === 'weapons'){
+    thead = `
+      <tr>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Time</th>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon 1</th>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon 2</th>
+      </tr>`;
+  } else if (view === 'character'){
+    thead = `
+      <tr>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Time</th>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Legend</th>
+      </tr>`;
+  } else {
+    thead = `
+      <tr>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Time</th>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Legend</th>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon 1</th>
+        <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon 2</th>
+      </tr>`;
+  }
 
   holder.innerHTML = `
     <table class="table" style="width:100%; border-collapse:collapse">
       <thead>
-        <tr>
-          <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Time</th>
-          <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Legend</th>
-          <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon 1</th>
-          <th style="text-align:left; padding:4px 6px; border-bottom:1px solid var(--border)">Weapon 2</th>
-        </tr>
+        ${thead}
       </thead>
       <tbody>
         ${rows}
@@ -263,8 +342,20 @@ function renderHistory(){
     container.querySelectorAll('.it').forEach(node=>{
       node.addEventListener('click', ()=>{
         const i = Number(node.dataset.idx);
+        // preserve user intent in enabledUser when available (for CS2 side filter)
+        if (Object.prototype.hasOwnProperty.call(list[i], 'enabledUser')){
+          list[i].enabledUser = !(list[i].enabledUser);
+        }
+        // toggle enabled directly as well
         list[i].enabled = !list[i].enabled;
         node.classList.toggle('off', !list[i].enabled);
+        // if we are on weapons grid, re-apply side filter to recompute effective enabled
+        const isWeapons = container && container.id === 'sl-weapons';
+        if (isWeapons && typeof applyCs2SideFilter === 'function'){
+          applyCs2SideFilter();
+          // re-render to reflect potential re-filtering
+          renderGrid(container, list);
+        }
         persist(); sendState();
       });
     });
@@ -307,6 +398,7 @@ function renderHistory(){
 
     const $ = (id)=>panel.querySelector(id);
     const slDuration = $('#sl-duration');
+  const slGame     = $('#sl-game');
     const slStagger  = $('#sl-stagger');
     const slInvert   = $('#sl-invert');
   // slStyle removed: using custom color pickers instead
@@ -324,6 +416,7 @@ function renderHistory(){
     const slStop     = $('#sl-stop');
     const slLegends  = $('#sl-legends');
     const slWeapons  = $('#sl-weapons');
+  const slIncludeAll = $('#sl-include-all');
   const slPreviewFrame = $('#sl-preview-frame');
   const slFrameColor = $('#sl-frame-color');
   const slPanelColor = $('#sl-panel-color');
@@ -333,7 +426,14 @@ function renderHistory(){
   const slCenterAlpha = $('#sl-center-alpha');
   const slSpinAlpha = $('#sl-spin-alpha');
     // NEW: view mode buttons
-  const slViewSelect     = $('#sl-view');
+    const slWeaponsOnly   = $('#sl-weapons-only');
+  const slWeaponOne     = $('#sl-weapon-one');
+    const slCharacterOnly = $('#sl-character-only');
+  // CS2 side controls
+  const slSideCard = $('#sl-side-card');
+  const slSideAll  = $('#sl-side-all');
+  const slSideCT   = $('#sl-side-ct');
+  const slSideT    = $('#sl-side-t');
 
     ensureSlotsState();
     slDuration.value = state.slots.duration;
@@ -350,29 +450,73 @@ function renderHistory(){
   slSfx.checked    = state.slots.sfx !== false;
   slVfx.checked    = state.slots.vfx !== false;
   slVignette.value = state.slots.vignette || 'normal';
-  // transparency (UI uses 0..100 percent; state uses 0..1)
-  const framePct = (typeof state.slots.frameAlpha === 'number') ? Math.round(state.slots.frameAlpha * 100) : 16;
-  const glowPct  = (typeof state.slots.glowAlpha === 'number')  ? Math.round(state.slots.glowAlpha * 100)  : 36;
-  slFrameAlpha.value = framePct;
-  slGlowAlpha.value  = glowPct;
-  slFrameAlphaVal.textContent = framePct + '%';
-  slGlowAlphaVal.textContent  = glowPct + '%';
-  // effect alphas
-  slVignetteAlpha.value = Math.round((state.slots.vignetteAlpha||1)*100);
-  slCenterAlpha.value   = Math.round((state.slots.centerAlpha||0.55)*100);
-  slSpinAlpha.value     = Math.round((state.slots.spinAlpha||0.7)*100);
-  document.getElementById('sl-vignette-alpha-val').textContent = Math.round((state.slots.vignetteAlpha||1)*100) + '%';
-  document.getElementById('sl-center-alpha-val').textContent = Math.round((state.slots.centerAlpha||0.55)*100) + '%';
-  document.getElementById('sl-spin-alpha-val').textContent = Math.round((state.slots.spinAlpha||0.7)*100) + '%';
 
     // NEW: toggle visibility of pick lists based on view mode
     const slLegendsCard = slLegends.closest('.card');
     const slWeaponsCard = slWeapons.closest('.card');
+    function isCS2GameId(id){ if(!id) return false; const s=String(id).toLowerCase(); return s.includes('counter') || s==='cs2' || s.includes('cs2'); }
+    function inferCS2SideFromName(src){
+      const s = (src||'').toLowerCase();
+      // Rough heuristics based on common CS weapon names
+      const tNames = ['ak-47','ak47','galil','sg553','sg-553','tec-9','tec9','glock','mac-10','mac10'];
+      const ctNames= ['m4a1','m4a1-s','m4a4','famas','aug','five-seven','fiveseven','usp','usp-s','mp5','mp5-sd'];
+      if (tNames.some(k=>s.includes(k))) return 't';
+      if (ctNames.some(k=>s.includes(k))) return 'ct';
+      return 'both';
+    }
+    function applyCs2SideFilter(){
+      // Preserve user choice in enabledUser; compute effective enabled by side
+      const side = state.slots.cs2Side || 'all';
+      (state.slots.weapons||[]).forEach(it=>{
+        if (typeof it.enabledUser === 'undefined') it.enabledUser = (it.enabled !== false);
+        const sideOf = inferCS2SideFromName(it.name || it.src || '');
+        const sideMatch = (side==='all') || (side==='ct' && (sideOf==='ct' || sideOf==='both')) || (side==='t' && (sideOf==='t' || sideOf==='both'));
+        it.enabled = !!(it.enabledUser && sideMatch);
+      });
+    }
+    function reflectCs2SideButtons(){
+      [slSideAll, slSideCT, slSideT].forEach(b=>b?.classList.remove('active'));
+      const v = state.slots.cs2Side || 'all';
+      if (v==='all') slSideAll?.classList.add('active');
+      if (v==='ct')  slSideCT?.classList.add('active');
+      if (v==='t')   slSideT?.classList.add('active');
+    }
+    function updateModeButtonsForGame(){
+      const hasLegends = (state.slots.legends||[]).length > 0;
+      // Hide modes that require legends if none are present
+      slCharacterOnly.style.display = hasLegends ? '' : 'none';
+      slIncludeAll.style.display    = hasLegends ? '' : 'none';
+      // Always allow weapons-only and single-weapon
+      slWeaponsOnly.style.display   = '';
+      if (slWeaponOne) slWeaponOne.style.display = '';
+      // CS2 side selector visibility
+      const cs2 = isCS2GameId(state.slots.game);
+      if (slSideCard) slSideCard.style.display = cs2 ? '' : 'none';
+      if (cs2){ applyCs2SideFilter(); reflectCs2SideButtons(); }
+      // Auto-select sensible view when swapping games
+      if (!hasLegends) {
+        if (state.slots.view !== 'weapon-one' && state.slots.view !== 'weapons') {
+          state.slots.view = 'weapon-one';
+          persist(); sendState();
+        }
+      } else {
+        if (state.slots.view === 'weapon-one') {
+          state.slots.view = 'all';
+          persist(); sendState();
+        }
+      }
+    }
     function applySlotsView(){
       const view = state.slots.view || 'all';
-      slLegendsCard.style.display = (view === 'weapons') ? 'none' : '';
+      // weapons-only and weapon-one -> hide legends list; character-only -> hide weapons list
+      slLegendsCard.style.display = (view === 'weapons' || view === 'weapon-one') ? 'none' : '';
       slWeaponsCard.style.display = (view === 'character') ? 'none' : '';
-      if (slViewSelect) slViewSelect.value = view;
+      // optional: reflect active button state
+      [slIncludeAll, slWeaponsOnly, slWeaponOne, slCharacterOnly].forEach(btn=>btn?.classList.remove('active'));
+      if (view==='all') slIncludeAll?.classList.add('active');
+      if (view==='weapons') slWeaponsOnly?.classList.add('active');
+      if (view==='weapon-one') slWeaponOne?.classList.add('active');
+      if (view==='character') slCharacterOnly?.classList.add('active');
     }
 
     // events
@@ -401,95 +545,6 @@ function renderHistory(){
       state.slots.frameFx = slFrameFx.value || 'standard';
       persist(); sendState();
     });
-    slFrameAlpha.addEventListener('input', ()=>{
-      const pct = parseInt(slFrameAlpha.value, 10) || 0;
-      const norm = clamp(pct / 100, 0, 1);
-      state.slots.frameAlpha = norm;
-      slFrameAlphaVal.textContent = Math.round(norm * 100) + '%';
-      // update preview: slot frame border (inset) and inner panel fill
-      if (slPreviewFrame) {
-        const frameColor = slFrameColor.value || '#ffffff';
-        const panelColor = (slPanelColor && slPanelColor.value) ? slPanelColor.value : slFrameColor.value || '#ffffff';
-        slPreviewFrame.style.boxShadow = `0 0 ${8 + (slGlowAlpha.value/100)*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(frameColor.slice(1,3),16)},${parseInt(frameColor.slice(3,5),16)},${parseInt(frameColor.slice(5,7),16)},${norm})`;
-        // inner panel uses panelColor (mirror of frameAlpha in controller UI)
-        slPreviewFrame.style.background = `rgba(${parseInt(panelColor.slice(1,3),16)},${parseInt(panelColor.slice(3,5),16)},${parseInt(panelColor.slice(5,7),16)},${norm})`;
-      }
-      persist(); sendState();
-    });
-    slGlowAlpha.addEventListener('input', ()=>{
-      const pct = parseInt(slGlowAlpha.value, 10) || 0;
-      const norm = clamp(pct / 100, 0, 1);
-      state.slots.glowAlpha = norm;
-      slGlowAlphaVal.textContent = Math.round(norm * 100) + '%';
-      // update preview (simulate glow by applying box-shadow) while preserving slot frame inset
-      if (slPreviewFrame) {
-        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
-        const frameColor = slFrameColor.value || '#ffffff';
-        slPreviewFrame.style.boxShadow = `0 0 ${8 + norm*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(frameColor.slice(1,3),16)},${parseInt(frameColor.slice(3,5),16)},${parseInt(frameColor.slice(5,7),16)},${fNorm})`;
-      }
-      persist(); sendState();
-    });
-
-    // color pickers
-    slAccent1.addEventListener('input', ()=>{
-      state.slots.accent1 = slAccent1.value;
-      // live preview accent via border/glow (maintain slot frame inset color)
-      if (slPreviewFrame) {
-        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
-        const frameColor = slFrameColor.value || '#ffffff';
-        slPreviewFrame.style.boxShadow = `0 0 ${8 + (slGlowAlpha.value/100)*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(frameColor.slice(1,3),16)},${parseInt(frameColor.slice(3,5),16)},${parseInt(frameColor.slice(5,7),16)},${fNorm})`;
-      }
-      persist(); sendState();
-    });
-    slAccent2.addEventListener('input', ()=>{
-      state.slots.accent2 = slAccent2.value;
-      if (slPreviewFrame) {
-        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
-        const frameColor = slFrameColor.value || '#ffffff';
-        const panelColor = (slPanelColor && slPanelColor.value) ? slPanelColor.value : frameColor;
-        slPreviewFrame.style.boxShadow = `0 0 ${8 + (slGlowAlpha.value/100)*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(frameColor.slice(1,3),16)},${parseInt(frameColor.slice(3,5),16)},${parseInt(frameColor.slice(5,7),16)},${fNorm})`;
-        slPreviewFrame.style.background = `rgba(${parseInt(panelColor.slice(1,3),16)},${parseInt(panelColor.slice(3,5),16)},${parseInt(panelColor.slice(5,7),16)},${fNorm})`;
-      }
-      persist(); sendState();
-    });
-
-    // frame color (slot frame color)
-    slFrameColor.addEventListener('input', ()=>{
-      state.slots.frameColor = slFrameColor.value;
-      if (slPreviewFrame){
-        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
-        const fc = slFrameColor.value || '#ffffff';
-        const panelColor = (slPanelColor && slPanelColor.value) ? slPanelColor.value : fc;
-        slPreviewFrame.style.boxShadow = `0 0 ${8 + (slGlowAlpha.value/100)*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(fc.slice(1,3),16)},${parseInt(fc.slice(3,5),16)},${parseInt(fc.slice(5,7),16)},${fNorm})`;
-        slPreviewFrame.style.background = `rgba(${parseInt(panelColor.slice(1,3),16)},${parseInt(panelColor.slice(3,5),16)},${parseInt(panelColor.slice(5,7),16)},${fNorm})`;
-      }
-      persist(); sendState();
-    });
-
-    // panel color (inner panel) picker
-    if (slPanelColor) slPanelColor.addEventListener('input', ()=>{
-      state.slots.panelColor = slPanelColor.value;
-      if (slPreviewFrame){
-        const fNorm = state.slots.frameAlpha || (parseInt(slFrameAlpha.value,10)/100) || 0;
-        const pc = slPanelColor.value || '#ffffff';
-        slPreviewFrame.style.background = `rgba(${parseInt(pc.slice(1,3),16)},${parseInt(pc.slice(3,5),16)},${parseInt(pc.slice(5,7),16)},${fNorm})`;
-      }
-      persist(); sendState();
-    });
-
-    // extra effect alpha sliders
-    slVignetteAlpha.addEventListener('input', ()=>{
-      const pct = parseInt(slVignetteAlpha.value,10)||0; state.slots.vignetteAlpha = clamp(pct/100,0,1);
-      document.getElementById('sl-vignette-alpha-val').textContent = pct + '%'; persist(); sendState();
-    });
-    slCenterAlpha.addEventListener('input', ()=>{
-      const pct = parseInt(slCenterAlpha.value,10)||0; state.slots.centerAlpha = clamp(pct/100,0,1);
-      document.getElementById('sl-center-alpha-val').textContent = pct + '%'; persist(); sendState();
-    });
-    slSpinAlpha.addEventListener('input', ()=>{
-      const pct = parseInt(slSpinAlpha.value,10)||0; state.slots.spinAlpha = clamp(pct/100,0,1);
-      document.getElementById('sl-spin-alpha-val').textContent = pct + '%'; persist(); sendState();
-    });
     slSfx.addEventListener('change', ()=>{
       state.slots.sfx = !!slSfx.checked;
       persist(); sendState();
@@ -503,12 +558,57 @@ function renderHistory(){
       persist(); sendState();
     });
 
-    // NEW: view mode handler (compact select)
-    if (slViewSelect) slViewSelect.addEventListener('change', ()=>{
+    // Game change
+    slGame.addEventListener('change', async ()=>{
+      state.slots.game = slGame.value || '';
+      persist();
+      await fetchIntoState();
+      // Initialize enabledUser baselines
+      (state.slots.legends||[]).forEach(it=>{ it.enabledUser = (it.enabled !== false); });
+      (state.slots.weapons||[]).forEach(it=>{ it.enabledUser = (it.enabled !== false); });
+      // Apply CS2 side filter if needed
+      updateModeButtonsForGame();
+      applyCs2SideFilter();
+      // Re-render grids with new game data
+      renderGrid(slLegends, state.slots.legends);
+      renderGrid(slWeapons, state.slots.weapons);
+      applySlotsView();
+      sendState();
+    });
+    // NEW: view mode handlers (buttons)
+    slIncludeAll.addEventListener('click', ()=>{
       ensureSlotsState();
-      state.slots.view = slViewSelect.value || 'all';
+      state.slots.view = 'all';
       applySlotsView();
       persist(); sendState();
+    });
+    slWeaponsOnly.addEventListener('click', ()=>{
+      ensureSlotsState();
+      state.slots.view = 'weapons';
+      applySlotsView();
+      persist(); sendState();
+    });
+    if (slWeaponOne) slWeaponOne.addEventListener('click', ()=>{
+      ensureSlotsState();
+      state.slots.view = 'weapon-one';
+      applySlotsView();
+      persist(); sendState();
+    });
+    slCharacterOnly.addEventListener('click', ()=>{
+      ensureSlotsState();
+      state.slots.view = 'character';
+      applySlotsView();
+      persist(); sendState();
+    });
+    // CS2 side events
+    if (slSideAll) slSideAll.addEventListener('click', ()=>{
+      ensureSlotsState(); state.slots.cs2Side='all'; applyCs2SideFilter(); reflectCs2SideButtons(); renderGrid(slWeapons, state.slots.weapons); persist(); sendState();
+    });
+    if (slSideCT) slSideCT.addEventListener('click', ()=>{
+      ensureSlotsState(); state.slots.cs2Side='ct';  applyCs2SideFilter(); reflectCs2SideButtons(); renderGrid(slWeapons, state.slots.weapons); persist(); sendState();
+    });
+    if (slSideT) slSideT.addEventListener('click', ()=>{
+      ensureSlotsState(); state.slots.cs2Side='t';   applyCs2SideFilter(); reflectCs2SideButtons(); renderGrid(slWeapons, state.slots.weapons); persist(); sendState();
     });
 
 
@@ -516,15 +616,25 @@ function renderHistory(){
     slSpin.addEventListener('click', ()=>{
       ensureSlotsState();
 
-      const legend   = pickEnabled(state.slots.legends);
-      const [w1, w2] = uniquePickTwo(state.slots.weapons);
-
-      // build the plan ONCE
-      const plan = {
-        legendSrc:  legend?.src || '',
-        weapon1Src: w1?.src || '',
-        weapon2Src: w2?.src || '',
-      };
+      const view = state.slots.view || 'all';
+      let plan = { legendSrc:'', weapon1Src:'', weapon2Src:'' };
+      if (view === 'weapon-one'){
+        const w = pickEnabled(state.slots.weapons);
+        plan.weapon1Src = w?.src || '';
+      } else if (view === 'weapons'){
+        const [w1, w2] = uniquePickTwo(state.slots.weapons);
+        plan.weapon1Src = w1?.src || '';
+        plan.weapon2Src = w2?.src || '';
+      } else if (view === 'character'){
+        const legend = pickEnabled(state.slots.legends);
+        plan.legendSrc = legend?.src || '';
+      } else {
+        const legend   = pickEnabled(state.slots.legends);
+        const [w1, w2] = uniquePickTwo(state.slots.weapons);
+        plan.legendSrc  = legend?.src || '';
+        plan.weapon1Src = w1?.src || '';
+        plan.weapon2Src = w2?.src || '';
+      }
 
       // and SEND that plan
       sendCmd('slotSpin', {
@@ -542,23 +652,17 @@ function renderHistory(){
 
     // initial render
     (async () => {
+      await populateGames();
       await loadManifestIfEmpty();
       renderGrid(slLegends, state.slots.legends);
+      // Initialize enabledUser baselines
+      (state.slots.legends||[]).forEach(it=>{ if (typeof it.enabledUser==='undefined') it.enabledUser = (it.enabled !== false); });
+      (state.slots.weapons||[]).forEach(it=>{ if (typeof it.enabledUser==='undefined') it.enabledUser = (it.enabled !== false); });
+      updateModeButtonsForGame();
+      applyCs2SideFilter();
       renderGrid(slWeapons, state.slots.weapons);
       applySlotsView(); // NEW
-      // Initialize preview visuals
-      try{
-        const fp = parseInt(slFrameAlpha.value,10) || 0;
-        const gp = parseInt(slGlowAlpha.value,10) || 0;
-          if (slPreviewFrame){
-    const fNorm = clamp(fp/100,0,1);
-    const gNorm = clamp(gp/100,0,1);
-    const fc = slFrameColor.value || '#ffffff';
-    const pc = (slPanelColor && slPanelColor.value) ? slPanelColor.value : fc;
-    slPreviewFrame.style.boxShadow = `0 0 ${8 + gNorm*24}px ${slAccent2.value}, inset 0 0 0 2px rgba(${parseInt(fc.slice(1,3),16)},${parseInt(fc.slice(3,5),16)},${parseInt(fc.slice(5,7),16)},${fNorm})`;
-    slPreviewFrame.style.background = `rgba(${parseInt(pc.slice(1,3),16)},${parseInt(pc.slice(3,5),16)},${parseInt(pc.slice(5,7),16)},${fNorm})`;
-        }
-      }catch(e){}
+      renderHistory();
     })();
 
     // store for auto-rescan on tab show
@@ -571,6 +675,8 @@ function renderHistory(){
       wire();
       // auto-rescan whenever Slots tab is selected
       if (typeof panel._slotsRescan === 'function') panel._slotsRescan();
+      // update history columns when switching back to this tab
+      if (typeof panel._renderHistory === 'function') panel._renderHistory();
     }
   };
 }

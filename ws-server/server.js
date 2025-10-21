@@ -26,9 +26,6 @@ function bucketFor(channel) {
 // Static roots
 const ROOT        = path.resolve(__dirname, '..'); // repo root
 const ASSETS      = path.join(ROOT, 'Assets');
-const APEXLEGENDS = path.join(ASSETS, 'ApexLegends');
-const CHAR_DIR    = path.join(APEXLEGENDS, 'characters');
-const WEAP_DIR    = path.join(APEXLEGENDS, 'weapons');
 
 const IMG_EXTS = new Set(['.png', '.svg', '.jpg', '.jpeg', '.webp', '.gif']);
 
@@ -59,6 +56,48 @@ function listDir(dirAbs, webRelPrefix) {
   }
 }
 
+function listSubdirs(dirAbs){
+  try {
+    return fs.readdirSync(dirAbs, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => d.name);
+  } catch { return []; }
+}
+
+function discoverGames(){
+  const names = listSubdirs(ASSETS);
+  return names.map(id => ({ id, name: fileNameToNice(id) }));
+}
+
+// Given a gameId (folder under Assets), find character/weapon folders by heuristics
+function getGameCategoryDirs(gameId){
+  const gameRoot = path.join(ASSETS, gameId);
+  const subs = listSubdirs(gameRoot);
+  const low = subs.map(s => s.toLowerCase());
+  const pick = (preds)=> subs.filter((n,i)=> preds.some(p=> low[i].includes(p)) ).map(n=> path.join(gameRoot, n));
+  const charPreds = ['character','characters','legend','legends','agent','agents','hero','heroes','operator','operators','champion','champions'];
+  const weapPreds = ['weapon','weapons','gun','guns','rifle','rifles','smg','shotgun','lmg','pistol','sniper','melee','bow'];
+  const charDirs = pick(charPreds);
+  const weapDirs = pick(weapPreds);
+  return { gameRoot, charDirs, weapDirs };
+}
+
+function buildManifestForGame(gameId){
+  const games = discoverGames();
+  const ids = new Set(games.map(g=>g.id));
+  let chosen = gameId && ids.has(gameId) ? gameId : null;
+  if (!chosen){
+    // prefer ApexLegends if present, else first
+    if (ids.has('ApexLegends')) chosen = 'ApexLegends';
+    else chosen = games[0]?.id || '';
+  }
+  if (!chosen) return { legends: [], weapons: [], game: null };
+  const { charDirs, weapDirs } = getGameCategoryDirs(chosen);
+  const legends = charDirs.flatMap(dir => listDir(dir, path.posix.join('Assets', chosen, path.basename(dir))));
+  const weapons = weapDirs.flatMap(dir => listDir(dir, path.posix.join('Assets', chosen, path.basename(dir))));
+  return { legends, weapons, game: chosen };
+}
+
 // ---------- HTTP server ----------
 const server = http.createServer((req, res) => {
   // CORS (so controller/overlay from OBS/file:// can hit this)
@@ -67,12 +106,21 @@ const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
-  // ----- Slots manifest (NOW inside the handler)
-  if (req.url === '/slots-manifest') {
-    const legends = listDir(CHAR_DIR, 'Assets/ApexLegends/characters');
-    const weapons = listDir(WEAP_DIR, 'Assets/ApexLegends/weapons');
+  // ----- Available games
+  if ((req.url || '').split('?')[0] === '/slots-games') {
+    const games = discoverGames();
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ legends, weapons }));
+    res.end(JSON.stringify({ games }));
+    return;
+  }
+
+  // ----- Slots manifest (supports ?game=<id>)
+  if ((req.url || '').split('?')[0] === '/slots-manifest') {
+    const fullUrl = new URL(req.url, `http://${HOST}:${PORT}`);
+    const game = fullUrl.searchParams.get('game');
+    const { legends, weapons, game: chosen } = buildManifestForGame(game);
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ legends, weapons, game: chosen }));
     return;
   }
 
@@ -118,12 +166,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ----- Slots manifest (NOW inside the handler)
-  if (req.url === '/slots-manifest') {
-    const legends = listDir(CHAR_DIR, 'Assets/ApexLegends/characters');
-    const weapons = listDir(WEAP_DIR, 'Assets/ApexLegends/weapons');
+  // Duplicate route guard (kept for safety if earlier block was missed)
+  if ((req.url || '').split('?')[0] === '/slots-manifest') {
+    const fullUrl = new URL(req.url, `http://${HOST}:${PORT}`);
+    const game = fullUrl.searchParams.get('game');
+    const { legends, weapons, game: chosen } = buildManifestForGame(game);
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({ legends, weapons }));
+    res.end(JSON.stringify({ legends, weapons, game: chosen }));
     return;
   }
 

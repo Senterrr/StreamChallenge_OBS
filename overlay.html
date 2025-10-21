@@ -361,14 +361,8 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
   // Show/hide reels and labels based on controller's view mode
   function applySlotsViewMask(){
     const view = (state.slots && state.slots.view) || 'all';
-  // view modes:
-  //  - 'all' => legend + weapon + weapon
-  //  - 'weapons' => hide legend, show both weapons
-  //  - 'one-weapon' => hide legend, show only first weapon (center), hide third
-  //  - 'character' => show legend only, hide weapons
-  const showLegend  = (view === 'all' || view === 'character');
-  const showWeapons = (view === 'all' || view === 'weapons' || view === 'one-weapon');
-  const showThird   = (view === 'all' || view === 'weapons');
+    const showLegend  = (view !== 'weapons' && view !== 'weapon-one');
+    const showWeapons = view !== 'character';
 
     // reel containers are the parent of strips
     const r0 = el.reel0 && el.reel0.parentElement;
@@ -376,13 +370,24 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     const r2 = el.reel2 && el.reel2.parentElement;
 
     if (r0) r0.style.display = showLegend  ? '' : 'none';
-  if (r1) r1.style.display = showWeapons ? '' : 'none';
-  if (r2) r2.style.display = (showWeapons && showThird) ? '' : 'none';
+    // In 'weapon-one' mode, only show a single weapon reel (use r1)
+    if (view === 'weapon-one'){
+      if (r1) r1.style.display = '';
+      if (r2) r2.style.display = 'none';
+    } else {
+      if (r1) r1.style.display = showWeapons ? '' : 'none';
+      if (r2) r2.style.display = showWeapons ? '' : 'none';
+    }
 
     // labels
     if (el.slotsLabel0) el.slotsLabel0.style.display = showLegend  ? '' : 'none';
-    if (el.slotsLabel1) el.slotsLabel1.style.display = showWeapons ? '' : 'none';
-    if (el.slotsLabel2) el.slotsLabel2.style.display = (showWeapons && showThird) ? '' : 'none';
+    if (view === 'weapon-one'){
+      if (el.slotsLabel1) el.slotsLabel1.style.display = '';
+      if (el.slotsLabel2) el.slotsLabel2.style.display = 'none';
+    } else {
+      if (el.slotsLabel1) el.slotsLabel1.style.display = showWeapons ? '' : 'none';
+      if (el.slotsLabel2) el.slotsLabel2.style.display = showWeapons ? '' : 'none';
+    }
   }
 
   const css = (k,v)=>document.documentElement.style.setProperty(k,v);
@@ -872,9 +877,25 @@ function populateReels(){
   const weapons = (S.weapons||[]).filter(x=>x.enabled);
   const L = legends.length ? legends : (S.legends||[]);
   const W = weapons.length ? weapons : (S.weapons||[]);
-  reels[0].list = L;
-  reels[1].list = W;
-  reels[2].list = W;
+  const view = (S.view||'all');
+  if (view === 'weapon-one'){
+    // No legend reel, single weapon reel in r1; r2 empty
+    reels[0].list = [];
+    reels[1].list = W;
+    reels[2].list = [];
+  } else if (view === 'weapons'){
+    reels[0].list = [];
+    reels[1].list = W;
+    reels[2].list = W;
+  } else if (view === 'character'){
+    reels[0].list = L;
+    reels[1].list = [];
+    reels[2].list = [];
+  } else {
+    reels[0].list = L;
+    reels[1].list = W;
+    reels[2].list = W;
+  }
   // render strips
   reels.forEach(r => {
     r.el.innerHTML = makeCellsHTML(r.list);
@@ -928,7 +949,16 @@ function startSlotsSpin(payload){
   // Respect current mask before preparing reels
   applySlotsViewMask();
   populateReels();
-  if (!reels[0].list.length || !reels[1].list.length) return;
+  // Allow spinning as long as at least one active reel has items
+  const activeReels = reels.filter((r, i) => {
+    const view = (state.slots && state.slots.view) || 'all';
+    if (i===0 && (view==='weapons' || view==='weapon-one')) return false;
+    if (i===1 && view==='character') return false;
+    if (i===2 && (view==='character' || view==='weapon-one')) return false;
+    return true;
+  });
+  const usable = activeReels.some(r=>r.list && r.list.length);
+  if (!usable) return;
 
   // read control params (payload overrides state)
   const S = state.slots || {};
@@ -961,14 +991,14 @@ function startSlotsSpin(payload){
   let idx2 = plan ? findIndexBySrc(reels[2].list, plan.weapon2Src) : -1;
 
   // fallback to random if plan missing or src not found
-  if (idx0 < 0) idx0 = Math.floor(Math.random() * reels[0].list.length);
-  if (idx1 < 0) idx1 = Math.floor(Math.random() * reels[1].list.length);
-  if (idx2 < 0) idx2 = Math.floor(Math.random() * reels[2].list.length);
+  if (reels[0].list.length){ if (idx0 < 0) idx0 = Math.floor(Math.random() * reels[0].list.length); }
+  if (reels[1].list.length){ if (idx1 < 0) idx1 = Math.floor(Math.random() * reels[1].list.length); }
+  if (reels[2].list.length){ if (idx2 < 0) idx2 = Math.floor(Math.random() * reels[2].list.length); }
 
   // cache chosen items (for labels + event)
-  chosen[0] = { ...reels[0].list[idx0], idx: idx0 };
-  chosen[1] = { ...reels[1].list[idx1], idx: idx1 };
-  chosen[2] = { ...reels[2].list[idx2], idx: idx2 };
+  chosen[0] = reels[0].list.length && idx0>=0 ? { ...reels[0].list[idx0], idx: idx0 } : {name:'',src:'',idx:0};
+  chosen[1] = reels[1].list.length && idx1>=0 ? { ...reels[1].list[idx1], idx: idx1 } : {name:'',src:'',idx:0};
+  chosen[2] = reels[2].list.length && idx2>=0 ? { ...reels[2].list[idx2], idx: idx2 } : {name:'',src:'',idx:0};
   setLabels();
 
   // reset reels to clean middle position
@@ -999,10 +1029,10 @@ function startSlotsSpin(payload){
   const t0 = performance.now();
 
   reels.forEach((r, i) => {
-    const n = r.list.length;
+  const n = Math.max(1, r.list.length);
     const middleStartIndex = n * Math.floor(COPIES/2);
     const dirSign = (DIR === 'down') ? -1 : +1;
-    const endIndex = middleStartIndex + dirSign * (LOOPS * n) + r.targetIdx;
+  const endIndex = middleStartIndex + dirSign * (LOOPS * n) + (r.targetIdx || 0);
 
     r.startY    = r.y; // from reset
     r.endY      = endIndex * CELL_H - CENTER_OFFSET;
@@ -1036,13 +1066,13 @@ function startSlotsSpin(payload){
         }
       }
 
-      const t = Math.min(1, (now - r.startTime) / (r.endTime - r.startTime));
+  const t = Math.min(1, (now - r.startTime) / Math.max(1, (r.endTime - r.startTime)));
       const k = easeOut(t);
       const y = r.startY + (r.endY - r.startY) * k;
       setY(r, y);
 
       // Late-phase tick SFX for slot-machine feel (when nearing the end)
-      if (t >= 0.72 && t < 1 && (state.slots||{}).sfx !== false) {
+  if (r.list.length && t >= 0.72 && t < 1 && (state.slots||{}).sfx !== false) {
         // Interval shrinks as we approach completion
         const interval = 240 - Math.min(180, (t - 0.72) * 900); // ~240ms -> ~60ms
         if (!r.nextTickAt || now >= r.nextTickAt) {
@@ -1061,7 +1091,7 @@ function startSlotsSpin(payload){
 
         // ← NEW: fade in the label of the reel that just finished
         const idx = reels.indexOf(r);
-        if (idx !== -1) revealLabel(idx);
+        if (idx !== -1 && r.list.length) revealLabel(idx);
       }
     }
 
@@ -1085,19 +1115,28 @@ function startSlotsSpin(payload){
         el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show');
       }
 
-      // emit overlay-confirmed result
+      // emit overlay-confirmed result; adapt payload to current view
       try {
         if (ws && ws.readyState === 1) {
+          const view = (state.slots && state.slots.view) || 'all';
+          const payload = { ts: Date.now() };
+          if (view === 'weapon-one'){
+            payload.weapon1 = chosen[1];
+          } else if (view === 'weapons'){
+            payload.weapon1 = chosen[1];
+            payload.weapon2 = chosen[2];
+          } else if (view === 'character'){
+            payload.legend = chosen[0];
+          } else {
+            payload.legend  = chosen[0];
+            payload.weapon1 = chosen[1];
+            payload.weapon2 = chosen[2];
+          }
           ws.send(JSON.stringify({
             type: 'event',
             channel,
             event: 'slotResult',
-            payload: {
-              legend:  chosen[0],
-              weapon1: chosen[1],
-              weapon2: chosen[2],
-              ts: Date.now()
-            }
+            payload
           }));
         }
       } catch(e){}
