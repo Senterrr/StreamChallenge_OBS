@@ -107,6 +107,8 @@ export function init(ctx){
           <label for="sl-center-alpha" style="min-width:140px">Center Glow</label>
           <input id="sl-center-alpha" type="range" min="0" max="100" step="1" class="input" value="55" style="flex:1">
           <div id="sl-center-alpha-val" class="hint" style="min-width:44px; text-align:right">55%</div>
+          <label for="sl-center-color" style="margin-left:10px">Center Color</label>
+          <input id="sl-center-color" type="color" class="input" value="#ffffff">
         </div>
         <div class="field" style="align-items:center; gap:12px; margin-top:6px">
           <label for="sl-spin-alpha" style="min-width:140px">Spin Glow</label>
@@ -150,6 +152,20 @@ export function init(ctx){
           </label>
           <label for="sl-stars-amount">Stars Amount</label>
           <input id="sl-stars-amount" class="input" type="number" step="1" min="0" max="500" value="60" style="width:84px">
+          <label for="sl-sunburst-mode" style="margin-left:10px">Sunburst</label>
+          <select id="sl-sunburst-mode" class="select">
+            <option value="inside">Inside (clipped)</option>
+            <option value="behind">Behind slots</option>
+          </select>
+          <label style="display:inline-flex; align-items:center; gap:8px; margin-left:10px">
+            <input type="checkbox" id="sl-sunburst-fade" checked> Fade streaks
+          </label>
+          <label style="margin-left:10px">Length %</label>
+          <input id="sl-sunburst-len" type="range" min="10" max="150" step="1" value="78" style="width:140px">
+          <div id="sl-sunburst-len-val" class="hint" style="min-width:36px; text-align:right">78%</div>
+          <label style="margin-left:10px">Thickness %</label>
+          <input id="sl-sunburst-thick" type="range" min="2" max="30" step="1" value="12" style="width:140px">
+          <div id="sl-sunburst-thick-val" class="hint" style="min-width:36px; text-align:right">12%</div>
           <div class="hint">Floating star particles while reels spin; amount controls intensity.</div>
         </div>
       </div>
@@ -213,6 +229,11 @@ export function init(ctx){
   if (typeof state.slots.starsEnabled !== 'boolean') state.slots.starsEnabled = true;
   if (typeof state.slots.hitEnabled !== 'boolean') state.slots.hitEnabled = true;
   if (typeof state.slots.starsAmount !== 'number') state.slots.starsAmount = 60;
+  if (typeof state.slots.sunburstMode !== 'string') state.slots.sunburstMode = 'inside';
+  if (typeof state.slots.sunburstFade !== 'boolean') state.slots.sunburstFade = true;
+  if (typeof state.slots.sunburstLenPct !== 'number') state.slots.sunburstLenPct = 78; // % of smaller rect dim
+  if (typeof state.slots.sunburstThickPct !== 'number') state.slots.sunburstThickPct = 12;
+  if (typeof state.slots.centerColor !== 'string') state.slots.centerColor = '#ffffff';
   }
 
   async function fetchIntoState(){
@@ -436,6 +457,12 @@ function renderHistory(){
   const slStarsEnabled = $('#sl-stars-enabled');
   const slHitEnabled   = $('#sl-hit-enabled');
   const slStarsAmount  = $('#sl-stars-amount');
+  const slSunburstMode = $('#sl-sunburst-mode');
+  const slSunburstFade = $('#sl-sunburst-fade');
+  const slSunburstLen  = $('#sl-sunburst-len');
+  const slSunburstLenVal = $('#sl-sunburst-len-val');
+  const slSunburstThick = $('#sl-sunburst-thick');
+  const slSunburstThickVal = $('#sl-sunburst-thick-val');
   const slFrameAlpha = $('#sl-frame-alpha');
   const slGlowAlpha  = $('#sl-glow-alpha');
   const slFrameAlphaVal = $('#sl-frame-alpha-val');
@@ -458,6 +485,7 @@ function renderHistory(){
   const slGradP2 = $('#sl-grad-p2');
   const slVignetteAlpha = $('#sl-vignette-alpha');
   const slCenterAlpha = $('#sl-center-alpha');
+  const slCenterColor = $('#sl-center-color');
   const slSpinAlpha = $('#sl-spin-alpha');
     // NEW: view mode buttons
     const slWeaponsOnly   = $('#sl-weapons-only');
@@ -488,6 +516,10 @@ function renderHistory(){
   if (slStarsEnabled) slStarsEnabled.checked = state.slots.starsEnabled !== false;
   if (slHitEnabled)   slHitEnabled.checked   = state.slots.hitEnabled   !== false;
   if (slStarsAmount)  slStarsAmount.value    = String(typeof state.slots.starsAmount === 'number' ? state.slots.starsAmount : 60);
+  if (slSunburstMode) slSunburstMode.value   = state.slots.sunburstMode || 'inside';
+  if (slSunburstFade) slSunburstFade.checked = state.slots.sunburstFade !== false;
+  if (slSunburstLen)  { slSunburstLen.value = String(state.slots.sunburstLenPct ?? 78); slSunburstLenVal.textContent = `${slSunburstLen.value}%`; }
+  if (slSunburstThick){ slSunburstThick.value = String(state.slots.sunburstThickPct ?? 12); slSunburstThickVal.textContent = `${slSunburstThick.value}%`; }
   slGlowColor.value = state.slots.glowColor || state.slots.accent2 || '#22d3ee';
   slGradType.value  = state.slots.gradType || 'linear';
   slGradAngle.value = String(state.slots.gradAngle ?? 180);
@@ -499,6 +531,7 @@ function renderHistory(){
   if (typeof state.slots.glowAlpha  === 'number') slGlowAlpha.value  = String(Math.round(state.slots.glowAlpha*100));
   if (typeof state.slots.vignetteAlpha === 'number') slVignetteAlpha.value = String(Math.round(state.slots.vignetteAlpha*100));
   if (typeof state.slots.centerAlpha   === 'number') slCenterAlpha.value   = String(Math.round(state.slots.centerAlpha*100));
+  if (slCenterColor) slCenterColor.value = state.slots.centerColor || '#ffffff';
   if (typeof state.slots.spinAlpha     === 'number') slSpinAlpha.value     = String(Math.round(state.slots.spinAlpha*100));
 
     // NEW: toggle visibility of pick lists based on view mode
@@ -611,6 +644,11 @@ function renderHistory(){
     if (slStarsEnabled) slStarsEnabled.addEventListener('change', ()=>{ state.slots.starsEnabled = !!slStarsEnabled.checked; persist(); sendState(); });
     if (slHitEnabled)   slHitEnabled.addEventListener('change',   ()=>{ state.slots.hitEnabled   = !!slHitEnabled.checked;   persist(); sendState(); });
     if (slStarsAmount)  slStarsAmount.addEventListener('change',  ()=>{ const v=Math.max(0, Math.min(500, parseInt(slStarsAmount.value||'0',10))); state.slots.starsAmount=v; slStarsAmount.value=String(v); persist(); sendState(); });
+  if (slSunburstMode) slSunburstMode.addEventListener('change', ()=>{ state.slots.sunburstMode = slSunburstMode.value || 'inside'; persist(); sendState(); });
+  if (slSunburstFade) slSunburstFade.addEventListener('change', ()=>{ state.slots.sunburstFade = !!slSunburstFade.checked; persist(); sendState(); });
+  if (slSunburstLen)  slSunburstLen.addEventListener('input', ()=>{ const v=Math.max(5, Math.min(200, parseInt(slSunburstLen.value||'78',10))); slSunburstLen.value=String(v); slSunburstLenVal.textContent=`${v}%`; state.slots.sunburstLenPct=v; persist(); sendState(); });
+  if (slSunburstThick) slSunburstThick.addEventListener('input', ()=>{ const v=Math.max(2, Math.min(50, parseInt(slSunburstThick.value||'12',10))); slSunburstThick.value=String(v); slSunburstThickVal.textContent=`${v}%`; state.slots.sunburstThickPct=v; persist(); sendState(); });
+  if (slCenterColor) slCenterColor.addEventListener('input', ()=>{ state.slots.centerColor = slCenterColor.value || '#ffffff'; persist(); sendState(); });
 
     function makeSlotFill(){
       const type = state.slots.gradType || 'linear';

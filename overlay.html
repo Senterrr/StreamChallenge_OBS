@@ -218,10 +218,10 @@
 
 /* Center glow used for reverse effect (bright center without covering icons) */
 .vfxCenterGlow{ position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease; z-index:1; mix-blend-mode:screen; }
-.vfxCenterGlow::before{ content:''; position:absolute; inset:0; background: radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.55), rgba(255,255,255,0) 60%); filter: blur(12px); }
+.vfxCenterGlow::before{ content:''; position:absolute; inset:0; background: radial-gradient(60% 60% at 50% 50%, rgba(var(--center-r,255), var(--center-g,255), var(--center-b,255), 0.55), rgba(var(--center-r,255), var(--center-g,255), var(--center-b,255), 0) 60%); filter: blur(12px); }
 body.vfx-on .vfxCenterGlow.show{ opacity: var(--center-alpha); }
 
-.spinGlow{ position:absolute; left:0; right:0; top:0; height:120px; pointer-events:none; opacity:0; transition: opacity .25s ease; mix-blend-mode:screen; z-index:4; }
+.spinGlow{ position:absolute; pointer-events:none; opacity:0; transition: opacity .25s ease; mix-blend-mode:screen; z-index:4; }
 .spinGlow::before{ content:''; position:absolute; inset:0; background: radial-gradient(80% 60% at 50% 0%, var(--accent2-soft), rgba(255,255,255,0)); filter: blur(12px); opacity:.7; }
 body.vfx-on .spinGlow.show{ opacity: var(--spin-alpha); }
 
@@ -519,6 +519,20 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
         docEl.style.setProperty('--panel-color-b', String(b2));
       }
     }catch(e){}
+    // parse center glow color -> numeric vars
+    try{
+      const cc = (typeof s.centerColor==='string' && s.centerColor.trim()) ? s.centerColor.trim() : '#ffffff';
+      const hex = cc.replace(/^#/, '');
+      let r=255,g=255,b=255;
+      if (/^[0-9a-fA-F]{6}$/.test(hex)){
+        r = parseInt(hex.slice(0,2),16); g = parseInt(hex.slice(2,4),16); b = parseInt(hex.slice(4,6),16);
+      } else if (/^[0-9a-fA-F]{3}$/.test(hex)){
+        r = parseInt(hex[0]+hex[0],16); g = parseInt(hex[1]+hex[1],16); b = parseInt(hex[2]+hex[2],16);
+      }
+      document.documentElement.style.setProperty('--center-r', String(r));
+      document.documentElement.style.setProperty('--center-g', String(g));
+      document.documentElement.style.setProperty('--center-b', String(b));
+    }catch(e){}
   }
   function applyFramePreset(){
     const f = (state.slots && state.slots.frame) || 'rounded';
@@ -534,8 +548,21 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     const chosen = (fx in {standard:1,nohighlight:1,curved:1,tilt:1,minimal:1,glow:1}) ? fx : 'standard';
     document.body.classList.add('framefx-' + chosen);
   }
+  function positionSpinGlow(){
+    if (!el.spinGlow) return;
+    const reelsWrap = document.querySelector('.slotsReels');
+    if (!reelsWrap || getComputedStyle(reelsWrap).display==='none') { el.spinGlow.style.display='none'; return; }
+    const vr = document.querySelector('.viewport').getBoundingClientRect();
+    const r = reelsWrap.getBoundingClientRect();
+    el.spinGlow.style.display='block';
+    el.spinGlow.style.left = (r.left - vr.left) + 'px';
+    el.spinGlow.style.top  = (r.top  - vr.top) + 'px';
+    el.spinGlow.style.width  = r.width + 'px';
+    el.spinGlow.style.height = Math.min(180, Math.max(80, r.height*0.65)) + 'px';
+  }
   function applySfxVfx(){
-    const s = state.slots || {};
+    const isWheel = state.mode==='wheel';
+    const s = isWheel ? (state.wheel||{}) : (state.slots||{});
     const vfx = s.vfx !== false;
     document.body.classList.toggle('vfx-on', vfx);
     // visibility of overlays is managed during spin; keep gate updated
@@ -543,7 +570,8 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
   }
 
   function updateAudioGateVisibility(){
-    const s = state.slots || {};
+    const isWheel = state.mode==='wheel';
+    const s = isWheel ? (state.wheel||{}) : (state.slots||{});
     const wantsAudio = (s.sfx !== false) && !mute;
     const shouldShow = wantsAudio && (!ac || (ac && ac.state !== 'running'));
     if (el.audioGate) el.audioGate.style.display = shouldShow ? 'block' : 'none';
@@ -598,11 +626,14 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
 
   function buildColors(n){
     if (n<=0) return [];
+    const base = (state.wheel && Array.isArray(state.wheel.colors) && state.wheel.colors.length)
+      ? state.wheel.colors
+      : BASE_COLORS;
     const out=new Array(n);
     for(let i=0;i<n;i++){
-      const fallback = BASE_COLORS[i%BASE_COLORS.length];
-      for(let k=0;k<BASE_COLORS.length;k++){
-        const c = BASE_COLORS[(i+k)%BASE_COLORS.length];
+      const fallback = base[i%base.length];
+      for(let k=0;k<base.length;k++){
+        const c = base[(i+k)%base.length];
         const prev = (i>0)? out[i-1] : null;
         if (c===prev) continue;
         if (i===n-1 && n>1 && c===out[0]) continue;
@@ -683,9 +714,9 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     const o=ac.createOscillator(), g=ac.createGain(); o.type=type; o.frequency.value=from; o.connect(g); g.connect(ac.destination);
     g.gain.value=vol; o.start(); const t0=ac.currentTime; o.frequency.linearRampToValueAtTime(to,t0+dur/1000); g.gain.exponentialRampToValueAtTime(0.0001, t0+dur/1000); o.stop(t0+dur/1000+0.02);
   }
-  const playSpinStart=()=>{ ensureAC(); sweep({from:280,to:680,dur:260,type:'triangle',vol:0.06}); };
-  const playTick=i=>{ ensureAC(); tone({freq:260+(i*6),dur:30,type:'square',vol:0.06}); };
-  const playLand=()=>{ ensureAC(); tone({freq:120,dur:90,type:'sine',vol:0.09}); setTimeout(()=>tone({freq:880,dur:140,type:'triangle',vol:0.07}),110); };
+  const playSpinStart=()=>{ const ws=state.wheel||{}; if(ws.sfx===false) return; ensureAC(); sweep({from:280,to:680,dur:260,type:'triangle',vol:0.06}); };
+  const playTick=i=>{ const ws=state.wheel||{}; if(ws.sfx===false) return; ensureAC(); tone({freq:260+(i*6),dur:30,type:'square',vol:0.06}); };
+  const playLand=()=>{ const ws=state.wheel||{}; if(ws.sfx===false) return; ensureAC(); tone({freq:120,dur:90,type:'sine',vol:0.09}); setTimeout(()=>tone({freq:880,dur:140,type:'triangle',vol:0.07}),110); };
 
   function finalizeResult(){
     const n=Math.max(1,state.items.length);
@@ -694,7 +725,9 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     const idx=Math.floor(a/step); resultIdx=idx;
     const choice = state.items[idx];
     el.wheelResult.textContent = choice ? ('→ ' + choice) : '';
-    playLand();
+  playLand();
+  try { if ((state.wheel||{}).vfx !== false) startConfetti(1200); }catch{}
+  el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show');
 
     try {
       if (ws && ws.readyState === 1) {
@@ -725,6 +758,15 @@ body.vfx-on .slotsWrap.spinning .reel{ animation: reelPulse .9s ease-in-out infi
     const vIn = (payload && typeof payload.vel==='number') ? payload.vel : 0.24;
     FRICTION  = (payload && typeof payload.friction==='number') ? payload.friction : 0.985;
     vel=vIn; spinning=true; resultIdx=null; lastTickIdx=null; el.wheelResult.textContent='';
+    // Wheel VFX on spin start
+    const WFX = state.wheel || {};
+    if (WFX.vfx !== false){
+      el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show');
+      const vg = String(WFX.vignette||'off');
+      if (vg==='normal') { el.vfxVignette.classList.add('show'); }
+      else if (vg==='reverse') { el.vfxCenterGlow && el.vfxCenterGlow.classList.add('show'); }
+      else if (vg==='both') { el.vfxVignette.classList.add('show'); el.vfxCenterGlow && el.vfxCenterGlow.classList.add('show'); }
+    }
     playSpinStart();
   }
   function stopSpin(){ spinning=false; vel=0; finalizeResult(); }
@@ -830,20 +872,30 @@ function drawStars(){ if(!starsCtx) return; const W=starsCanvas.width,H=starsCan
 let sunCanvases = [null,null,null];
 let sunCtxs     = [null,null,null];
 let sunRaf = null, sunburstRunning=false, sunburstSpeed=0.8; // rotations per second
+let sunGlobalCanvas=null, sunGlobalCtx=null; // for mode: behind
+let sunMode='inside';
 function ensureSunCanvas(i){
   const reelNode = [el.reel0, el.reel1, el.reel2][i]?.parentElement; if(!reelNode) return;
   if (!sunCanvases[i]){
     const c=document.createElement('canvas'); c.className='sunburstCanvas'; c.style.position='absolute'; c.style.inset='0'; c.style.pointerEvents='none'; c.style.zIndex='0';
     reelNode.insertBefore(c, reelNode.firstChild);
-    sunCanvases[i]=c; sunCtxs[i]=c.getContext('2d');
+    sunCanvases[i]=c; const ctx=c.getContext('2d'); sunCtxs[i]=ctx;
+    // Use DPR scaling so all drawing math can be in CSS pixels; avoids off-center artifacts
+    const dpr = Math.max(1, window.devicePixelRatio||1);
+    const rect = reelNode.getBoundingClientRect();
+    c.width = Math.max(1, Math.floor(rect.width*dpr)); c.height = Math.max(1, Math.floor(rect.height*dpr));
+    c.style.width = rect.width + 'px'; c.style.height = rect.height + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
     resizeSunCanvas(i);
   }
 }
-function resizeSunCanvas(i){ const c=sunCanvases[i]; if(!c) return; const host=c.parentElement; const rect=host.getBoundingClientRect(); const dpr=Math.max(1,window.devicePixelRatio||1); c.width=Math.max(1,Math.floor(rect.width*dpr)); c.height=Math.max(1,Math.floor(rect.height*dpr)); const ctx=sunCtxs[i]; if(ctx){ ctx.setTransform(1,0,0,1,0,0); } }
-function stopSunburst(){ if(sunRaf){ cancelAnimationFrame(sunRaf); sunRaf=null; } sunburstRunning=false; for(let i=0;i<3;i++){ const c=sunCanvases[i]; if(c&&c.parentNode){ c.parentNode.removeChild(c);} sunCanvases[i]=null; sunCtxs[i]=null; } window.removeEventListener('resize', resizeAllSunCanvases);
+function resizeSunCanvas(i){ const c=sunCanvases[i]; if(!c) return; const host=c.parentElement; const rect=host.getBoundingClientRect(); const dpr=Math.max(1,window.devicePixelRatio||1); c.width=Math.max(1,Math.floor(rect.width*dpr)); c.height=Math.max(1,Math.floor(rect.height*dpr)); c.style.width = rect.width + 'px'; c.style.height = rect.height + 'px'; const ctx=sunCtxs[i]; if(ctx){ ctx.setTransform(dpr,0,0,dpr,0,0); } }
+function stopSunburst(){ if(sunRaf){ cancelAnimationFrame(sunRaf); sunRaf=null; } sunburstRunning=false; for(let i=0;i<3;i++){ const c=sunCanvases[i]; if(c&&c.parentNode){ c.parentNode.removeChild(c);} sunCanvases[i]=null; sunCtxs[i]=null; } if(sunGlobalCanvas&&sunGlobalCanvas.parentNode){ sunGlobalCanvas.parentNode.removeChild(sunGlobalCanvas);} sunGlobalCanvas=sunGlobalCtx=null; window.removeEventListener('resize', resizeAllSunCanvases);
 }
 function resizeAllSunCanvases(){ for(let i=0;i<3;i++){ if(sunCanvases[i]) resizeSunCanvas(i); } }
-function startSunburst(){ const S=state.slots||{}; if(S.vfx===false) return; sunburstRunning=true; for(let i=0;i<3;i++) ensureSunCanvas(i); if(!sunRaf) sunRaf=requestAnimationFrame(drawSunburst); window.addEventListener('resize', resizeAllSunCanvases); }
+function ensureSunGlobalCanvas(){ if(sunGlobalCanvas) return; const vp=document.querySelector('.viewport'); const c=document.createElement('canvas'); c.id='sunburstBehind'; c.style.position='absolute'; c.style.inset='0'; c.style.pointerEvents='none'; c.style.zIndex='0'; vp.insertBefore(c, vp.firstChild); sunGlobalCanvas=c; sunGlobalCtx=c.getContext('2d'); resizeSunGlobal(); window.addEventListener('resize', resizeSunGlobal); }
+function resizeSunGlobal(){ if(!sunGlobalCanvas) return; const rect=sunGlobalCanvas.parentElement.getBoundingClientRect(); const dpr=Math.max(1,window.devicePixelRatio||1); sunGlobalCanvas.width=Math.max(1,Math.floor(rect.width*dpr)); sunGlobalCanvas.height=Math.max(1,Math.floor(rect.height*dpr)); sunGlobalCanvas.style.width=rect.width+'px'; sunGlobalCanvas.style.height=rect.height+'px'; sunGlobalCtx.setTransform(dpr,0,0,dpr,0,0); }
+function startSunburst(){ const S=state.slots||{}; if(S.vfx===false) return; sunMode = S.sunburstMode || 'inside'; sunburstRunning=true; if (sunMode==='behind'){ ensureSunGlobalCanvas(); } else { for(let i=0;i<3;i++) ensureSunCanvas(i); window.addEventListener('resize', resizeAllSunCanvases); } if(!sunRaf) sunRaf=requestAnimationFrame(drawSunburst); }
 function lerp(a,b,t){ return a + (b-a)*t; }
 function hexToRgb(hex){ const h=hex.replace('#',''); if(h.length===3){ return [parseInt(h[0]+h[0],16),parseInt(h[1]+h[1],16),parseInt(h[2]+h[2],16)]; } return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
 function mixHex(a,b,t){ const ra=hexToRgb(a), rb=hexToRgb(b); const r=Math.round(lerp(ra[0],rb[0],t)), g=Math.round(lerp(ra[1],rb[1],t)), bl=Math.round(lerp(ra[2],rb[2],t)); return `rgb(${r},${g},${bl})`; }
@@ -851,21 +903,51 @@ function drawSunburst(ts){ if(!sunburstRunning){ return; }
   const a1=(getComputedStyle(document.body).getPropertyValue('--accent1').trim()||'#7c3aed');
   const a2=(getComputedStyle(document.body).getPropertyValue('--accent2').trim()||'#22d3ee');
   const rays=18; const spin = (ts*0.001*sunburstSpeed) % (Math.PI*2);
-  for(let i=0;i<3;i++){
-    const c=sunCanvases[i], ctx=sunCtxs[i], reel=reels[i]; if(!c||!ctx) continue; // draw only while reel is spinning
-    ctx.clearRect(0,0,c.width,c.height);
-    if(!(reel && reel.started && !reel.done)) continue;
-    const dpr=Math.max(1,window.devicePixelRatio||1);
-    const w=c.width, h=c.height; const cx=w/2, cy=h/2; const len=Math.max(40*dpr, Math.min(w,h)*0.78); const thick=Math.max(6*dpr, Math.min(w,h)*0.12);
-    ctx.save(); ctx.translate(cx,cy);
-    for(let r=0;r<rays;r++){
-      const ang = spin + r*(Math.PI*2/rays);
-      // smoothly cycle color along the ring
-      const t = (Math.sin(spin*2 + r*0.6)+1)/2; const col = mixHex(a1,a2,t);
-      const a = 0.14 + 0.12*Math.sin(spin*3 + r);
-      ctx.save(); ctx.rotate(ang); ctx.globalAlpha = Math.max(0,Math.min(0.32,a)); ctx.fillStyle=col; ctx.fillRect(0, -thick/2, len, thick); ctx.restore();
+  const S = state.slots || {};
+  const lenPct = Math.max(5, Math.min(200, Number(S.sunburstLenPct ?? 78)))/100;
+  const thickPct = Math.max(2, Math.min(50, Number(S.sunburstThickPct ?? 12)))/100;
+  const useFade = S.sunburstFade !== false;
+  if (sunMode==='behind'){
+    if(!sunGlobalCtx){ sunRaf=requestAnimationFrame(drawSunburst); return; }
+    const ctx=sunGlobalCtx; const W=sunGlobalCanvas.width/(Math.max(1,window.devicePixelRatio||1)); const H=sunGlobalCanvas.height/(Math.max(1,window.devicePixelRatio||1)); ctx.clearRect(0,0,W,H);
+    for(let i=0;i<3;i++){
+      const reel=reels[i]; const host=[el.reel0,el.reel1,el.reel2][i]?.parentElement; if(!(reel && reel.started && !reel.done && host)) continue;
+      const r=host.getBoundingClientRect(); const cx=(r.left+r.right)/2 - sunGlobalCanvas.parentElement.getBoundingClientRect().left; const cy=(r.top+r.bottom)/2 - sunGlobalCanvas.parentElement.getBoundingClientRect().top;
+      const size=Math.min(r.width,r.height); const len=Math.max(20, size*lenPct); const thick=Math.max(2, size*thickPct);
+      ctx.save(); ctx.translate(cx,cy);
+      for(let rr=0; rr<rays; rr++){
+        const ang= spin + rr*(Math.PI*2/rays);
+        const t=(Math.sin(spin*2 + rr*0.6)+1)/2; const col=mixHex(a1,a2,t); const alp= 0.12 + 0.10*Math.sin(spin*3 + rr);
+        ctx.save(); ctx.rotate(ang); ctx.globalAlpha=Math.max(0,Math.min(0.28,alp));
+        if (useFade){
+          const g=ctx.createLinearGradient(0,0,len,0);
+          g.addColorStop(0, col);
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle=g;
+        } else { ctx.fillStyle=col; }
+        ctx.fillRect(0,-thick/2,len,thick); ctx.restore();
+      }
+      ctx.restore();
     }
-    ctx.restore();
+  } else {
+    for(let i=0;i<3;i++){
+      const c=sunCanvases[i], ctx=sunCtxs[i], reel=reels[i]; if(!c||!ctx) continue; // draw only while reel is spinning
+      // Clear in CSS pixel space (we transformed context with DPR)
+      ctx.clearRect(0,0,c.width/(Math.max(1,window.devicePixelRatio||1)), c.height/(Math.max(1,window.devicePixelRatio||1)));
+      if(!(reel && reel.started && !reel.done)) continue;
+      const rect=c.getBoundingClientRect(); const w=rect.width, h=rect.height; const cx=w/2, cy=h/2; const len=Math.max(20, Math.min(w,h)*lenPct); const thick=Math.max(2, Math.min(w,h)*thickPct);
+      ctx.save(); ctx.translate(cx,cy);
+      for(let r=0;r<rays;r++){
+        const ang = spin + r*(Math.PI*2/rays);
+        const t = (Math.sin(spin*2 + r*0.6)+1)/2; const col = mixHex(a1,a2,t);
+        const a = 0.14 + 0.12*Math.sin(spin*3 + r);
+        ctx.save(); ctx.rotate(ang); ctx.globalAlpha = Math.max(0,Math.min(0.32,a));
+        if (useFade){ const g=ctx.createLinearGradient(0,0,len,0); g.addColorStop(0,col); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; }
+        else { ctx.fillStyle=col; }
+        ctx.fillRect(0, -thick/2, len, thick); ctx.restore();
+      }
+      ctx.restore();
+    }
   }
   sunRaf=requestAnimationFrame(drawSunburst);
 }
@@ -1073,6 +1155,7 @@ function startSlotsSpin(payload){
     if (vg==='normal') { el.vfxVignette.classList.add('show'); }
     else if (vg==='reverse') { el.vfxCenterGlow && el.vfxCenterGlow.classList.add('show'); }
     else if (vg==='both') { el.vfxVignette.classList.add('show'); el.vfxCenterGlow && el.vfxCenterGlow.classList.add('show'); }
+    positionSpinGlow();
     el.spinGlow.classList.add('show');
   }
   // SFX on spin start
@@ -1217,7 +1300,7 @@ function startSlotsSpin(payload){
   starsActive = false;
       if ((state.slots||{}).vfx !== false){
         el.slotsWrap.classList.add('shake'); setTimeout(()=>el.slotsWrap.classList.remove('shake'), 260);
-        el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show');
+        el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show'); el.spinGlow.style.display='none';
       }
 
       // emit overlay-confirmed result; adapt payload to current view
@@ -1275,7 +1358,7 @@ function stopSlots(){
   // And focus the centered cells
   el.slotsWrap.classList.add('focused');
   // Landing SFX + VFX even on forced stop
-  playSlotLand(); startSlotsBurst(); stopSunburst(); starsActive=false; if ((state.slots||{}).vfx !== false){ el.slotsWrap.classList.add('shake'); setTimeout(()=>el.slotsWrap.classList.remove('shake'), 260); el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show'); }
+  playSlotLand(); startSlotsBurst(); stopSunburst(); starsActive=false; if ((state.slots||{}).vfx !== false){ el.slotsWrap.classList.add('shake'); setTimeout(()=>el.slotsWrap.classList.remove('shake'), 260); el.vfxVignette.classList.remove('show'); if (el.vfxCenterGlow) el.vfxCenterGlow.classList.remove('show'); el.spinGlow.classList.remove('show'); el.spinGlow.style.display='none'; }
 }
 
 
